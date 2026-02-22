@@ -1,0 +1,7 @@
+feature,importance
+lead_time,0.4440701385252335
+avg_price_per_room,0.30291955007553506
+no_of_special_requests,0.09668010889539488
+total_nights,0.07154604905010667
+market_segment_type_encoded,0.05688691191558788
+arrival_year,0.02789724153814193

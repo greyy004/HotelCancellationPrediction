@@ -1,0 +1,65 @@
+
+.flash-container {
+    position: fixed;
+    top: 84px;
+    right: 20px;
+    width: min(320px, calc(100% - 40px));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+
+.flash-message {
+    display: flex;
+    justify-content: center;   
+    align-items: center;        
+    text-align: center;         
+
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    pointer-events: auto;
+
+    opacity: 0;
+    animation: flash-slide-in 0.32s ease forwards,
+               flash-hide 0.45s ease forwards 3.1s;
+}
+
+
+.flash-message.success {
+    background: #16a34a;
+}
+
+
+.flash-message.danger {
+    background: #dc2626;
+}
+
+
+@keyframes flash-slide-in {
+    from {
+        transform: translateX(25px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+
+@keyframes flash-hide {
+    to {
+        opacity: 0;
+        transform: translateX(8px);
+    }
+}

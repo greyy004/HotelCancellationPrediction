@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ room.room_type_name }} - Room {{ room.room_number }} | HamroGhar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/view_room.css') }}">
+
+</head>
+
+<body>
+    <header>
+        <div class="logo">HamroGhar</div>
+        <div class="header-right">
+            <a href="{{ url_for('register') }}">Register</a>
+            <a href="{{ url_for('login') }}" class="btn btn-primary header-login-btn">Login</a>
+        </div>
+    </header>
+
+    {% include "_flash_messages.html" %}
+
+    <div class="view-room-container">
+        <div class="room-detail-header">
+            <h1>Room Details</h1>
+            <a href="{{ url_for('landing') }}" class="back-link">
+                &larr; Back to Rooms
+            </a>
+        </div>
+
+        
+        <div class="main-content-layout">
+            
+            {% if meal_plans and meal_plans|length > 0 %}
+            <div class="meal-plans-sidebar">
+                <h3>Available Meal Plans</h3>
+                <div class="meal-plans-list">
+                    {% for meal_plan in meal_plans %}
+                    {% if meal_plan.meal_plan_name != 'No Meal' %}
+                    <div class="meal-plan-item">
+                        {% if meal_plan.image_path %}
+                        <img src="{{ url_for('static', filename='uploads/menu_plans/' ~ meal_plan.image_path) }}" 
+                             alt="{{ meal_plan.meal_plan_name }}">
+                        {% else %}
+                        <img src="https://via.placeholder.com/300x150/e5e7eb/6b7280?text=Meal+Plan" 
+                             alt="Meal Plan">
+                        {% endif %}
+                        <div class="meal-plan-name">{{ meal_plan.meal_plan_name }}</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            
+            <div class="room-details-column">
+                
+                <div class="room-overview">
+                    <div class="room-image-container">
+                        {% if room.image_path %}
+                        <img src="{{ url_for('static', filename='uploads/rooms/' ~ room.image_path) }}" alt="{{ room.room_type_name }}">
+                        {% else %}
+                        <img src="https://via.placeholder.com/300x200/6366f1/ffffff?text=Room+{{ room.room_number }}" alt="Room Image">
+                        {% endif %}
+                    </div>
+                    
+                    <div class="room-basic-info">
+                        <h2 class="room-title">Room {{ room.room_number }}</h2>
+                        <p class="room-type">{{ room.room_type_name }}</p>
+                        {% if room.description %}
+                        <p class="room-description">{{ room.description }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="price-section">
+                        <div class="price-label">Starting from</div>
+                        <div class="price-amount">Rs {{ room.price_per_night|default(0) }}</div>
+                        <div class="price-per-night">per night</div>
+                    </div>
+                </div>
+
+                
+                <div class="room-details-section">
+                    <div class="room-info-grid">
+                        <div class="info-item">
+                            <strong>Room Number</strong>
+                            <span>{{ room.room_number }}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Room Type</strong>
+                            <span>{{ room.room_type_name }}</span>
+                        </div>
+                    </div>
+
+                    
+                    <div class="unavailable-dates-section">
+                        <h3>Unavailable Dates</h3>
+                        <ul class="unavailable-list">
+                            {% if unavailable_ranges and unavailable_ranges|length > 0 %}
+                                {% for r in unavailable_ranges %}
+                                    <li>{{ r.start[:10] }} to {{ r.end[:10] }}</li>
+                                {% endfor %}
+                            {% else %}
+                                <li class="empty-state">No unavailable dates. Room is available for booking!</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+
+                
+                <div class="book-button-container">
+                    <a href="{{ url_for('book_room', room_id=room.room_id) if session.get('user_id') else url_for('login', next=url_for('book_room', room_id=room.room_id)) }}" 
+                       class="btn-book-large">
+                        {% if session.get('user_id') %}
+                            Book Now
+                        {% else %}
+                            Login to Book
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>
+

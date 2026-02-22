@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Market Segments</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manage_market_segments.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+
+<body>
+
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Admin</h2>
+            <nav>
+                <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('manage_room_types') }}">Room categories</a>
+                <a href="{{ url_for('manage_rooms') }}">Rooms</a>
+                <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
+                <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
+                <a href="{{ url_for('manage_market_segments') }}" class="active">Segments</a>
+                <a href="{{ url_for('admin_view_bookings') }}">Bookings</a>
+                <a href="{{ url_for('admin_view_users') }}">Users</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+        {% include "_flash_messages.html" %}
+        <main class="main-content">
+            <header class="main-header">
+                <h1>Market Segments</h1>
+            </header>
+
+            <div class="container">
+                
+                <div class="card">
+                    <form method="post">
+                        <div class="form-group">
+                            <input name="segment_name" placeholder="Segment name" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Segment</button>
+                    </form>
+                </div>
+
+                
+                <div class="card">
+                    <ul class="list">
+                        {% for s in segments %}
+                        <li>{{ s.segment_name }}</li>
+                        {% else %}
+                        <li class="empty-state">No segments yet</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>

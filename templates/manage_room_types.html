@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Room Types</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manage_room_types.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Admin</h2>
+            <nav>
+                <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('manage_room_types') }}" class="active">Room categories</a>
+                <a href="{{ url_for('manage_rooms') }}">Rooms</a>
+                <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
+                <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
+                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
+                <a href="{{ url_for('admin_view_bookings') }}">Bookings</a>
+                <a href="{{ url_for('admin_view_users') }}">Users</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+        {% include "_flash_messages.html" %}
+        <main class="main-content">
+            <header class="main-header">
+                <h1>Manage Room Types</h1>
+            </header>
+
+            
+            <div class="card">
+                <h3>Add New Room Type</h3>
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="room_type_name">Room Type Name</label>
+                        <input type="text" name="room_type_name" id="room_type_name" required
+                            placeholder="e.g., Deluxe Suite">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea name="description" id="description" rows="4"
+                            placeholder="Describe the features, amenities, view, etc."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="price_per_night">Price Per Night (Rs.)</label>
+                        <input type="number" name="price_per_night" id="price_per_night" required
+                            placeholder="e.g., 150">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="max_guests">Maximum Guests</label>
+                        <input type="number" name="max_guests" id="max_guests" min="1" required
+                            placeholder="e.g., 2" value="2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="image_file">Upload Image</label>
+                        <input type="file" name="image_file" id="image_file" accept="image/*">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Room Type</button>
+                </form>
+            </div>
+
+            
+            <div class="card">
+                <h3>Existing Room Types</h3>
+                {% if room_types %}
+                <div class="room-grid">
+                    {% for room in room_types %}
+                    <div class="room-card">
+                        {% if room['image_path'] %}
+                        <img src="{{ url_for('static', filename='uploads/rooms/' + room['image_path']) }}"
+                            alt="{{ room['room_type_name'] }}" class="room-image">
+                        {% else %}
+                        <div class="no-image">
+                            <p>No image uploaded</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="room-info">
+                            <div class="room-header">
+                                <h3>{{ room['room_type_name'] }}</h3>
+                                <span class="price-tag">Rs. {{ room['price_per_night'] or '-' }}/night</span>
+                            </div>
+                            <p><strong>Max Guests:</strong> {{ room['max_guests'] or 2 }}</p>
+                            <p class="room-description">{{ room['description'] or 'No description provided.' }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <h3>No Room Types Yet</h3>
+                    <p>Start by creating your first room type above!</p>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Dashboard - HamroGhar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Admin</h2>
+            <nav>
+                <a href="{{ url_for('admin_dashboard') }}" class="active">Dashboard</a>
+                <a href="{{ url_for('manage_room_types') }}">Room categories</a>
+                <a href="{{ url_for('manage_rooms') }}">Rooms</a>
+                <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
+                <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
+                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
+                <a href="{{ url_for('admin_view_bookings') }}">Bookings</a>
+                <a href="{{ url_for('admin_view_users') }}">Users</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="main-header">
+                <h1>Welcome, Admin</h1>
+            </header>
+            {% include "_flash_messages.html" %}
+            
+            <section class="stats-section">
+                <div class="stats-cards">
+                    <div class="card">
+                        <h3>Total Bookings</h3>
+                        <p>{{ total_bookings }}</p>
+                    </div>
+                    <div class="card">
+                        <h3>Total Users</h3>
+                        <p>{{ total_users }}</p>
+                    </div>
+                    <div class="card">
+                        <h3>Available Rooms</h3>
+                        <p>{{ available_rooms }}</p>
+                    </div>
+                    <div class="card">
+                        <h3>Meal Plans</h3>
+                        <p>{{ total_meal_plans }}</p>
+                    </div>
+                    <div class="card">
+                        <h3>Extra Facilities</h3>
+                        <p>{{ total_extra_facilities }}</p>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section class="recent-bookings-section">
+                <div class="table-card">
+                    <h2>Recent 5 Bookings</h2>
+                    <div class="table-wrapper">
+                        <table class="simple-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer</th>
+                                    <th>Room</th>
+                                    <th>Meal</th>
+                                    <th>Guests</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for b in recent_bookings %}
+                                <tr>
+                                    <td>#{{ b.booking_id }}</td>
+                                    <td>{{ b.customer_name }}</td>
+                                    <td>{{ b.room_number }}</td>
+                                    <td>{{ b.meal_plan_name }}</td>
+                                    <td>{{ b.total_guests or 0 }}</td>
+                                    <td>{{ "Canceled" if b.booking_status == "Canceled" else "Not Canceled" }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6">No recent bookings</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            
+            <section>
+                <div class="table-card">
+                    <h2>Room Types</h2>
+                    <div class="table-wrapper">
+                        <table class="simple-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type Name</th>
+                                    <th>Description</th>
+                                    <th>Price/Night</th>
+                                    <th>Max Guests</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rt in room_types %}
+                                <tr>
+                                    <td>#{{ rt.room_type_id }}</td>
+                                    <td>{{ rt.room_type_name }}</td>
+                                    <td>{{ rt.description or "-" }}</td>
+                                    <td>{{ rt.price_per_night or "-" }}</td>
+                                    <td>{{ rt.max_guests or 2 }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5">No room types available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>

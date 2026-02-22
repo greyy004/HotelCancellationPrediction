@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Booking Review - {{ booking.booking_id }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_booking_hold_review.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Admin</h2>
+            <nav>
+                <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('manage_room_types') }}">Room categories</a>
+                <a href="{{ url_for('manage_rooms') }}">Rooms</a>
+                <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
+                <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
+                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
+                <a href="{{ url_for('admin_view_bookings') }}" class="active">Bookings</a>
+                <a href="{{ url_for('admin_view_users') }}">Users</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+
+        {% include "_flash_messages.html" %}
+
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1>Booking Review</h1>
+                    <p>Booking #{{ booking.booking_id }}</p>
+                </div>
+                <a href="{{ url_for('admin_view_bookings') }}" class="back-btn">Back to Bookings</a>
+            </div>
+
+            <section class="cards-grid">
+                <article class="card">
+                    <h3>Customer Details</h3>
+                    <p><strong>Customer ID:</strong> {{ booking.customer_id }}</p>
+                    <p><strong>Name:</strong> {{ booking.customer_name }}</p>
+                    <p><strong>Email:</strong> {{ booking.customer_email }}</p>
+                    <p><strong>Phone:</strong> {{ booking.customer_phone or 'N/A' }}</p>
+                    <p><strong>Address:</strong> {{ booking.customer_address or 'N/A' }}</p>
+                </article>
+
+                <article class="card">
+                    <h3>Booking Details</h3>
+                    <p><strong>Booked On:</strong> {{ booking.created_at }}</p>
+                    <p><strong>Check-in:</strong> {{ checkin }}</p>
+                    <p><strong>Check-out:</strong> {{ checkout }}</p>
+                    <p><strong>Nights:</strong> {{ booking.total_nights }}</p>
+                    <p><strong>Guests:</strong> {{ booking.total_guests or 0 }}</p>
+                </article>
+
+                <article class="card">
+                    <h3>Room & Payment</h3>
+                    <p><strong>Room #:</strong> {{ booking.room_number }}</p>
+                    <p><strong>Room Type:</strong> {{ booking.room_type_name }}</p>
+                    <p><strong>Meal Plan:</strong> {{ booking.meal_plan_name or 'N/A' }}</p>
+                    <p><strong>Extra Facilities:</strong> {{ booking.extra_facility_count or 0 }}</p>
+                    <p><strong>Facilities Total:</strong> Rs {{ "%.2f"|format(booking.extra_facility_total or 0) }}</p>
+                    <p><strong>Payment:</strong> {{ booking.segment_name }}</p>
+                    <p><strong>Status:</strong> {{ booking.booking_status }}</p>
+                </article>
+
+                <article class="card">
+                    <h3>Prediction</h3>
+                    <p><strong>Cancellation %:</strong> {{ cancellation_probability }}%</p>
+                    <p><strong>Risk:</strong>
+                        <span class="risk-badge risk-{{ risk_level|lower }}">{{ risk_level }}</span>
+                    </p>
+                    <p><strong>Current Hold:</strong>
+                        {% if booking.is_on_hold %}
+                        <span class="hold-badge">On Hold</span>
+                        {% else %}
+                        No
+                        {% endif %}
+                    </p>
+                    {% if booking.hold_reason %}
+                    <p><strong>Last Hold Reason:</strong> {{ booking.hold_reason }}</p>
+                    {% endif %}
+                </article>
+            </section>
+
+            {% if booking.booking_status == 'Canceled' %}
+            <section class="action-box muted-box">
+                This booking is canceled and cannot be put on hold.
+            </section>
+            {% elif booking.is_on_hold %}
+            <section class="action-box muted-box">
+                This booking is already on hold.
+            </section>
+            {% elif risk_level != 'High' %}
+            <section class="action-box muted-box">
+                Only high-risk bookings can be placed on hold.
+            </section>
+            {% else %}
+            <section class="action-box">
+                <h3>Hold Booking</h3>
+                <form method="post" action="{{ url_for('admin_hold_booking', booking_id=booking.booking_id) }}">
+                    <label for="hold_reason">Reason for hold</label>
+                    <textarea id="hold_reason" name="hold_reason" rows="5" required
+                        placeholder="Write why this booking should be placed on hold..."></textarea>
+                    <button type="submit" class="hold-btn">Click On Hold</button>
+                </form>
+            </section>
+            {% endif %}
+        </main>
+    </div>
+
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>

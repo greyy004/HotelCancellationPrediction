@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin - All Bookings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_bookings.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>Admin</h2>
+            <nav>
+                <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('manage_room_types') }}">Room categories</a>
+                <a href="{{ url_for('manage_rooms') }}">Rooms</a>
+                <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
+                <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
+                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
+                <a href="{{ url_for('admin_view_bookings') }}" class="active">Bookings</a>
+                <a href="{{ url_for('admin_view_users') }}">Users</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+        {% include "_flash_messages.html" %}
+        <main class="main-content">
+
+
+            <div class="container">
+                <div class="header">
+                    <h2>All Bookings</h2>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Customer ID</th>
+                                <th>Room #</th>
+                                <th>Room Type</th>
+                                <th>Payment</th>
+                                <th>Guests</th>
+                                <th>Nights</th>
+                                <th>Status</th>
+                                <th>Cancel %</th>
+                                <th>Prediction</th>
+                                <th>Risk</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking, pred in bookings_combined %}
+                            <tr>
+                                <td><strong>{{ booking.booking_id }}</strong></td>
+                                <td>{{ booking.customer_id }}</td>
+                                <td>{{ booking.room_number }}</td>
+                                <td>{{ booking.room_type_name }}</td>
+                                <td>{{ booking.segment_name }}</td>
+                                <td>{{ booking.total_guests or 0 }}</td>
+                                <td>{{ booking.total_nights }}</td>
+
+                                <td>
+                                    {% if booking.booking_status == 'Canceled' %}
+                                    <span class="status-canceled">{{ booking.booking_status }}</span>
+                                    {% else %}
+                                    <span class="status-confirmed">{{ booking.booking_status }}</span>
+                                    {% if booking.is_on_hold %}
+                                    <span class="status-hold">On Hold</span>
+                                    {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td><strong>{{ (pred.cancellation_probability * 100)|round(2) }}%</strong></td>
+
+                                <td>
+                                    {% if pred.prediction == "Likely to Cancel" %}
+                                    <span class="prediction-1">Will Cancel</span>
+                                    {% else %}
+                                    <span class="prediction-0">Will Stay</span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="risk-{{ pred.risk_level|lower }}">
+                                        {{ pred.risk_level|title }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if booking.booking_status == 'Canceled' %}
+                                    <span class="hold-note">-</span>
+                                    {% elif booking.is_on_hold %}
+                                    <a href="{{ url_for('admin_view_booking_for_hold', booking_id=booking.booking_id) }}"
+                                        class="view-btn">View</a>
+                                    {% elif pred.risk_level == "High" %}
+                                    <a href="{{ url_for('admin_view_booking_for_hold', booking_id=booking.booking_id) }}"
+                                        class="view-btn">View</a>
+                                    {% else %}
+                                    <span class="hold-note">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+{% include "_flash_dismiss_script.html" %}
+</body>
+
+</html>

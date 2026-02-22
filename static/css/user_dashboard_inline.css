@@ -1,0 +1,232 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #f5f7fa;
+    color: #1e293b;
+}
+
+.dashboard {
+    display: flex;
+    min-height: 100vh;
+}
+
+
+.sidebar {
+    width: 220px;
+    background: #ffffff;
+    border-right: 1px solid #e5e7eb;
+    padding: 2rem 1rem;
+    position: fixed;
+    height: 100vh;
+}
+
+.sidebar h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #2563eb;
+}
+
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sidebar nav a {
+    padding: 0.8rem 1rem;
+    color: #374151;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active {
+    background: #e0f2fe;
+    color: #2563eb;
+}
+
+.sidebar nav a.logout {
+    margin-top: auto;
+    color: #dc2626;
+}
+
+.sidebar nav a.logout:hover {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+
+.rooms-section {
+    flex: 1;
+    margin-left: 220px;
+    padding: 40px 20px;
+    width: calc(100% - 220px);
+}
+
+.section-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 2.5rem;
+    letter-spacing: -1px;
+    position: relative;
+    padding-bottom: 1rem;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 80px;
+    height: 4px;
+    background: #667eea;
+    border-radius: 2px;
+}
+
+.rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 25px;
+}
+
+.room-card {
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #f1f5f9;
+}
+
+.room-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+    border-color: #e0e7ff;
+}
+
+.room-card img {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    background: #667eea;
+    transition: transform 0.4s ease;
+}
+
+.room-card:hover img {
+    transform: scale(1.05);
+}
+
+.room-info {
+    padding: 2rem;
+}
+
+.room-info p {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: #475569;
+    line-height: 1.6;
+}
+
+.room-info p strong {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.room-info p:first-child {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.room-info p:first-child span {
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.room-description-muted {
+    color: rgba(87, 87, 87, 0.904);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.btn {
+    display: inline-block;
+    padding: 0.85rem 2rem;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 1rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    letter-spacing: 0.3px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    background: #764ba2;
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    
+}
+
+.empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.empty-state p {
+    font-size: 1.25rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+
+    .sidebar nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .rooms-section {
+        margin-left: 0;
+        margin: 20px auto;
+    }
+
+    .rooms-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .section-title {
+        font-size: 24px;
+    }
+}

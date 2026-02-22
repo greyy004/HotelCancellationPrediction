@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Room {{ room.room_number }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/book_room.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/flash.css') }}">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <h2>User Dashboard</h2>
+            <nav>
+                <a href="{{ url_for('user_dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('my_bookings') }}">My Bookings</a>
+                <a href="{{ url_for('user_profile') }}">Profile</a>
+                <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            </nav>
+        </aside>
+
+        <div class="booking-main">
+            {% include "_flash_messages.html" %}
+
+            <div class="top-bar">
+                <h1>Room Booking</h1>
+                <a href="{{ url_for('user_dashboard') }}" class="back">Go Back</a>
+            </div>
+
+            <div class="container">
+                <div class="side-column">
+                    <div class="room-card">
+                        {% if room.image_path %}
+                        <img src="{{ url_for('static', filename='uploads/rooms/' ~ room.image_path) }}" alt="Room" class="room-image">
+                        {% else %}
+                        <img src="https://via.placeholder.com/400x250/6366f1/ffffff?text=Room+{{ room.room_number }}" alt="Room" class="room-image">
+                        {% endif %}
+
+                        <div class="room-info">
+                            <h2>Room {{ room.room_number }}</h2>
+                            <p class="room-type"><b>{{ room.room_type_name }}</b> - {{ room.description }}</p>
+
+                            <div class="price-tag">
+                                <div class="price">Rs {{ "%.2f"|format(room.price_per_night|default(120)) }}</div>
+                                <div class="per-night">per night</div>
+                            </div>
+                            <p><strong>Max Guests:</strong> {{ room.max_guests or 2 }}</p>
+                        </div>
+                    </div>
+
+                    <div class="facilities-card">
+                        <h3>Extra Facilities</h3>
+                        {% if extra_facilities and extra_facilities|length > 0 %}
+                        <div class="facilities-list">
+                            {% for facility in extra_facilities %}
+                            <label class="facility-option">
+                                <input type="checkbox"
+                                       class="extra-facility-checkbox"
+                                       value="{{ facility.facility_id }}"
+                                       data-price="{{ "%.2f"|format(facility.price|float) }}">
+                                <span>{{ facility.facility_name }}</span>
+                                <strong>Rs {{ "%.2f"|format(facility.price|float) }}</strong>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="facilities-empty">No extra facilities available right now.</p>
+                        {% endif %}
+
+                        <div class="facilities-summary">
+                            <div>
+                                <span>Selected</span>
+                                <strong id="facility_count_display">0</strong>
+                            </div>
+                            <div>
+                                <span>Total</span>
+                                <strong>Rs <span id="facility_total_display">0.00</span></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div class="form-card">
+                    <form id="bookingForm">
+                        
+                        <div class="section">
+                            <h2>Select Dates</h2>
+                            <div class="grid">
+                                <div class="form-group">
+                                    <label>Check-in Date *</label>
+                                    <input type="date" id="checkin" required>
+                                    <div class="note" id="checkin-note"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Check-out Date *</label>
+                                    <input type="date" id="checkout" required>
+                                    <div class="note" id="checkout-note"></div>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Unavailable Dates</label>
+                                    <ul id="unavailable-list" class="unavailable-list">
+                                        {% if unavailable_ranges and unavailable_ranges|length > 0 %}
+                                            {% for r in unavailable_ranges %}
+                                                <li>{{ r.start[:10] }} to {{ r.end[:10] }}</li>
+                                            {% endfor %}
+                                        {% else %}
+                                            <li class="empty-state">No unavailable dates.</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <input type="hidden" id="lead_time" value="0">
+                        <input type="hidden" id="arrival_year">
+                        <input type="hidden" id="arrival_month">
+                        <input type="hidden" id="arrival_date">
+                        <input type="hidden" id="total_nights" value="0">
+                        <input type="hidden" id="total_cost" value="0.00">
+
+                        
+                        <div class="section">
+                            <h2>Guest Information</h2>
+                            <div class="grid">
+                                <div class="form-group">
+                                    <label>Total Number of Guests *</label>
+                                    <input type="number" id="total_guests" min="1" max="{{ room.max_guests or 2 }}" value="1" required>
+                                    <div class="note">Maximum allowed for this room: {{ room.max_guests or 2 }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="section">
+                            <h2>Preferences</h2>
+                            <div class="grid">
+                                <div class="form-group">
+                                    <label>Meal Plan *</label>
+                                    <select id="meal_plan_id" required>
+                                        {% for m in meal_plans %}
+                                        <option value="{{ m.meal_plan_id }}">{{ m.meal_plan_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Payment Option *</label>
+                                    <select id="market_segment_id" required>
+                                        {% for s in segments %}
+                                        
+                                        <option value="{{ s.market_segment_id }}" data-segment-name="{{ s.segment_name }}">{{ s.segment_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <div class="payment-section">
+                            <div class="total-preview">
+                                <strong>Total: Rs <span id="display_total">0.00</span></strong>
+                            </div>
+                            <button type="button" class="btn-submit" id="bookButton" disabled>
+                                <span id="button-text">Fill all fields</span>
+                            </button>
+                            <div class="payment-note" id="payment-note">
+                                Select dates and preferences to continue.
+                            </div>
+                        </div>
+
+                        
+                        <input type="hidden" id="avg_price_per_room" value="{{ room.price_per_night|default(120) }}">
+                        <input type="hidden" id="room_max_guests" value="{{ room.max_guests or 2 }}">
+                        <input type="hidden" id="room_id" value="{{ room.room_id }}">
+                        <input type="hidden" id="room_number" value="{{ room.room_number }}">
+                        <input type="hidden" id="facilities_total" value="0.00">
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const checkinInput = document.getElementById('checkin');
+        const checkoutInput = document.getElementById('checkout');
+        const marketSegmentSelect = document.getElementById('market_segment_id');
+        const mealPlanSelect = document.getElementById('meal_plan_id');
+        const totalGuestsInput = document.getElementById('total_guests');
+        const roomMaxGuests = parseInt(document.getElementById('room_max_guests').value || '2');
+        const facilityCheckboxes = Array.from(document.querySelectorAll('.extra-facility-checkbox'));
+        const bookButton = document.getElementById('bookButton');
+        const buttonText = document.getElementById('button-text');
+        const paymentNote = document.getElementById('payment-note');
+
+        function isOnlineSegment() {
+            const opt = marketSegmentSelect.options[marketSegmentSelect.selectedIndex];
+            return opt && opt.dataset.segmentName === 'Online';
+        }
+
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        checkinInput.min = todayStr;
+        checkoutInput.min = todayStr;
+
+        function getSelectedFacilitiesData() {
+            const selectedIds = [];
+            let facilitiesTotal = 0;
+
+            facilityCheckboxes.forEach((checkbox) => {
+                if (!checkbox.checked) return;
+                selectedIds.push(parseInt(checkbox.value));
+                facilitiesTotal += parseFloat(checkbox.dataset.price || '0');
+            });
+
+            return {
+                selectedIds,
+                count: selectedIds.length,
+                total: facilitiesTotal
+            };
+        }
+
+        function updateSummary() {
+            const checkin = checkinInput.value ? new Date(checkinInput.value) : null;
+            const checkout = checkoutInput.value ? new Date(checkoutInput.value) : null;
+            const price = parseFloat(document.getElementById('avg_price_per_room').value);
+            const selectedFacilities = getSelectedFacilitiesData();
+
+            document.getElementById('facility_count_display').textContent = selectedFacilities.count;
+            document.getElementById('facility_total_display').textContent = selectedFacilities.total.toFixed(2);
+            document.getElementById('facilities_total').value = selectedFacilities.total.toFixed(2);
+
+            if (!checkin || !checkout) {
+                resetButton();
+                return;
+            }
+
+            if (checkout <= checkin) {
+                document.getElementById('checkout-note').textContent = 'Check-out must be after check-in';
+                resetButton();
+                return;
+            } else {
+                document.getElementById('checkout-note').textContent = '';
+            }
+
+            const oneDay = 24 * 60 * 60 * 1000;
+            const nights = Math.round((checkout - checkin) / oneDay);
+
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            const leadTime = Math.max(0, Math.round((checkin - todayDate) / oneDay));
+
+            const totalAmount = ((nights * price) + selectedFacilities.total).toFixed(2);
+            document.getElementById('display_total').textContent = totalAmount;
+            document.getElementById('total_cost').value = totalAmount;
+            document.getElementById('total_nights').value = nights;
+
+            document.getElementById('lead_time').value = leadTime;
+            document.getElementById('arrival_year').value = checkin.getFullYear();
+            document.getElementById('arrival_month').value = checkin.getMonth() + 1;
+            document.getElementById('arrival_date').value = checkin.getDate();
+
+            updateBookButton(totalAmount, nights);
+        }
+
+        function updateBookButton(totalAmount, nights) {
+            const totalGuests = parseInt(totalGuestsInput.value || 0);
+            if (totalGuests > roomMaxGuests) {
+                resetButton();
+                paymentNote.textContent = `This room allows a maximum of ${roomMaxGuests} guests.`;
+                return;
+            }
+            if (nights > 0 && totalGuests > 0 && mealPlanSelect.value && marketSegmentSelect.value) {
+                bookButton.disabled = false;
+
+                if (isOnlineSegment()) {
+                    buttonText.textContent = `Pay Rs ${totalAmount} with Khalti`;
+                    paymentNote.textContent = "Secure payment via Khalti. Booking will be confirmed after successful payment.";
+                } else {
+                    buttonText.textContent = `Book Room - Rs ${totalAmount}`;
+                    paymentNote.textContent = "Payment will be handled at the hotel reception.";
+                }
+            } else {
+                resetButton();
+            }
+        }
+
+        function resetButton() {
+            bookButton.disabled = true;
+            buttonText.textContent = "Fill all required fields";
+            paymentNote.textContent = "Select dates, guests, meal plan, and market segment to continue.";
+        }
+
+        function getBookingData() {
+            const selectedFacilities = getSelectedFacilitiesData();
+            return {
+                room_id: parseInt(document.getElementById('room_id').value),
+                room_number: document.getElementById('room_number').value,
+                avg_price_per_room: parseFloat(document.getElementById('avg_price_per_room').value),
+                lead_time: parseInt(document.getElementById('lead_time').value),
+                arrival_year: parseInt(document.getElementById('arrival_year').value),
+                arrival_month: parseInt(document.getElementById('arrival_month').value),
+                arrival_date: parseInt(document.getElementById('arrival_date').value),
+                total_nights: parseInt(document.getElementById('total_nights').value),
+                total_guests: parseInt(document.getElementById('total_guests').value),
+                no_of_special_requests: selectedFacilities.count,
+                meal_plan_id: parseInt(document.getElementById('meal_plan_id').value),
+                market_segment_id: parseInt(document.getElementById('market_segment_id').value),
+                extra_facility_ids: selectedFacilities.selectedIds,
+                extra_facilities_total: parseFloat(document.getElementById('facilities_total').value || 0)
+            };
+        }
+
+        function showMessage(message, category) {
+            const flashDiv = document.createElement('div');
+            flashDiv.className = `flash-message ${category}`;
+            flashDiv.textContent = message;
+            document.querySelector('.flash-container').appendChild(flashDiv);
+
+            setTimeout(() => {
+                flashDiv.style.transition = "opacity 0.5s ease";
+                flashDiv.style.opacity = "0";
+                setTimeout(() => flashDiv.remove(), 500);
+            }, 4000);
+        }
+
+        bookButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            if (bookButton.disabled) {
+                showMessage("Please choose valid dates, guests, meal plan, and market segment first.", "danger");
+                return;
+            }
+
+            const totalAmount = parseFloat(document.getElementById('total_cost').value);
+            const bookingData = getBookingData();
+            if (bookingData.total_guests > roomMaxGuests) {
+                showMessage(`This room allows a maximum of ${roomMaxGuests} guests.`, "danger");
+                resetButton();
+                return;
+            }
+
+            if (isOnlineSegment()) {
+                try {
+                    bookButton.disabled = true;
+                    buttonText.textContent = "Redirecting to Khalti...";
+                    showMessage("Redirecting to payment gateway...", "info");
+
+                    const response = await fetch('/api/khalti/create-payment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            amount: totalAmount,
+                            booking_data: bookingData
+                        })
+                    });
+
+                    let result = {};
+                    try {
+                        result = await response.json();
+                    } catch (parseErr) {
+                        console.error("Failed to parse payment response", parseErr);
+                    }
+
+                    if (response.ok && result.success && result.payment_url) {
+                        window.location.href = result.payment_url;
+                    } else {
+                        showMessage(result.error || "Payment initiation failed.", "danger");
+                        resetButton();
+                    }
+                } catch (error) {
+                    console.error(error);
+                    showMessage("Error initiating payment. Please try again.", "danger");
+                    resetButton();
+                }
+            } else {
+                try {
+                    bookButton.disabled = true;
+                    buttonText.textContent = "Booking...";
+                    showMessage("Creating booking...", "info");
+
+                    const response = await fetch(`/book_room/{{ room.room_id }}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bookingData)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        showMessage("Booking confirmed successfully!", "success");
+                        setTimeout(() => window.location.href = '/user_dashboard', 1500);
+                    } else {
+                        showMessage(result.message || "Booking failed", "danger");
+                        resetButton();
+                    }
+                } catch (error) {
+                    console.error(error);
+                    showMessage("Booking error. Please try again.", "danger");
+                    resetButton();
+                }
+            }
+        });
+
+        checkinInput.addEventListener('change', updateSummary);
+        checkoutInput.addEventListener('change', updateSummary);
+        totalGuestsInput.addEventListener('input', updateSummary);
+        marketSegmentSelect.addEventListener('change', updateSummary);
+        mealPlanSelect.addEventListener('change', updateSummary);
+        facilityCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', updateSummary);
+        });
+updateSummary();
+    </script>
+{% include "_flash_dismiss_script.html" %}
+</body>
+</html>
