@@ -1,34 +1,30 @@
-from flask import flash, jsonify, redirect, render_template, url_for
+﻿from flask import flash, jsonify, redirect, render_template, url_for
 
-from hotel_app.models.db import get_db_connection
-from hotel_app.models.meal_plan_model import list_meal_plans
-from hotel_app.models.room_model import get_room_for_public, list_rooms_with_types
-from hotel_app.services.booking_service import get_unavailable_ranges_for_room
+from hotel_app.models import meal_plan_model, room_model
+from hotel_app.services import booking_service
 
 
-def room_unavailable_ranges(room_id):
-    conn = get_db_connection()
-    ranges = get_unavailable_ranges_for_room(conn, room_id)
-    conn.close()
-    return jsonify({"ranges": ranges})
+def get_unavailable(room_id):
+    return booking_service.get_unavailable(room_id)
 
 
-def landing():
-    available_rooms = list_rooms_with_types()
+def ranges(room_id):
+    return jsonify({"ranges": get_unavailable(room_id)})
+
+
+def home():
+    available_rooms = room_model.list_all()
     return render_template("landing.html", available_rooms=available_rooms)
 
 
-def view_room(room_id):
-    room = get_room_for_public(room_id)
+def room(room_id):
+    room = room_model.get_public(room_id)
     if not room:
         flash("Room not found!", "danger")
         return redirect(url_for("landing"))
 
-    meal_plans = list_meal_plans()
-
-    conn = get_db_connection()
-    unavailable_ranges = get_unavailable_ranges_for_room(conn, room_id)
-    conn.close()
+    meal_plans = meal_plan_model.list_all()
+    unavailable_ranges = get_unavailable(room_id)
 
     return render_template(
         "view_room.html",

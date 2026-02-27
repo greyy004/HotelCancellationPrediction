@@ -129,6 +129,13 @@
                                     <input type="number" id="total_guests" min="1" max="{{ room.max_guests or 2 }}" value="1" required>
                                     <div class="note">Maximum allowed for this room: {{ room.max_guests or 2 }}</div>
                                 </div>
+                                <div class="form-group">
+                                    <label>Parking Required</label>
+                                    <label>
+                                        <input type="checkbox" id="required_car_parking_space" value="1">
+                                        Yes, I need parking
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -187,6 +194,7 @@
         const marketSegmentSelect = document.getElementById('market_segment_id');
         const mealPlanSelect = document.getElementById('meal_plan_id');
         const totalGuestsInput = document.getElementById('total_guests');
+        const parkingInput = document.getElementById('required_car_parking_space');
         const roomMaxGuests = parseInt(document.getElementById('room_max_guests').value || '2');
         const facilityCheckboxes = Array.from(document.querySelectorAll('.extra-facility-checkbox'));
         const bookButton = document.getElementById('bookButton');
@@ -303,6 +311,7 @@
                 arrival_date: parseInt(document.getElementById('arrival_date').value),
                 total_nights: parseInt(document.getElementById('total_nights').value),
                 total_guests: parseInt(document.getElementById('total_guests').value),
+                required_car_parking_space: parkingInput.checked ? 1 : 0,
                 no_of_special_requests: selectedFacilities.count,
                 meal_plan_id: parseInt(document.getElementById('meal_plan_id').value),
                 market_segment_id: parseInt(document.getElementById('market_segment_id').value),

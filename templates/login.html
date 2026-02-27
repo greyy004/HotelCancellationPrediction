@@ -13,51 +13,32 @@
     <div class="auth-card">
         <h2>Login</h2>
         {% include "_flash_messages.html" %}
-        <form method="post" id="loginForm" action="{{ url_for('login') }}">
+        <form id="loginForm" method="post" action="{{ url_for('login') }}">
             {% if next %}
             <input type="hidden" name="next" value="{{ next }}">
             {% endif %}
             <div>
                 <label for="email">Email</label>
                 <input id="email" name="email" type="email" required>
-                <p class="error" id="email-error"></p>
             </div>
             <div>
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" required>
-                <p class="error" id="password-error"></p>
             </div>
             <button type="submit">Login</button>
         </form>
         <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
     </div>
-
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', function (e) {
-            let isValid = true;
-
-            document.querySelectorAll('.error').forEach(el => el.textContent = '');
-
-            const email = document.getElementById('email').value.trim();
-            if (!/^\S+@\S+\.\S+$/.test(email)) {
-                document.getElementById('email-error').textContent = 'Please enter a valid email';
-                isValid = false;
-            }
-
-            const password = document.getElementById('password').value;
-
-            if (password.length < 8) {
-                document.getElementById('password-error').textContent = 'Password must be at least 8 characters';
-                isValid = false;
-            } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
-                document.getElementById('password-error').textContent = 'Password must contain both letters and numbers';
-                isValid = false;
-            }
-
-            if (!isValid) {
-                e.preventDefault(); // stop submission
-            }
-        });
+<script>
+    const loginForm = document.getElementById("loginForm");
+    loginForm.addEventListener("submit", (e) => {
+        const email = document.getElementById("email");
+        email.value = email.value.trim();
+        if (!loginForm.checkValidity()) {
+            e.preventDefault();
+            loginForm.reportValidity();
+        }
+    });
 </script>
 {% include "_flash_dismiss_script.html" %}
 </body>

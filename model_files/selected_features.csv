@@ -1,7 +1,12 @@
-selected_feature
+feature
 lead_time
 no_of_special_requests
-arrival_year
 avg_price_per_room
 market_segment_type_encoded
-total_nights
+repeated_guest
+total_stays
+no_of_week_nights
+total_guests
+required_car_parking_space
+no_of_weekend_nights
+no_of_previous_bookings_not_canceled

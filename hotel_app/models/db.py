@@ -3,7 +3,7 @@ import sqlite3
 from hotel_app.config import DB_PATH
 
 
-def init_db():
+def init():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -93,6 +93,7 @@ def init_db():
             no_of_special_requests INTEGER DEFAULT 0,
             total_nights INTEGER,
             total_guests INTEGER,
+            required_car_parking_space INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(customer_id) REFERENCES customers(customer_id),
             FOREIGN KEY(room_id) REFERENCES rooms(room_id),
@@ -138,7 +139,7 @@ def init_db():
     conn.close()
 
 
-def get_db_connection():
+def conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

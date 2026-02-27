@@ -1,73 +1,76 @@
 from hotel_app.controllers import admin_controller
-from hotel_app.middleware.auth import admin_required
+from hotel_app.middleware.auth import need_admin
 
 
-def register_admin_routes(app):
-    app.add_url_rule(
-        "/admin_dashboard",
-        endpoint="admin_dashboard",
-        view_func=admin_required(admin_controller.admin_dashboard),
-    )
-    app.add_url_rule(
-        "/admin/room_types",
-        endpoint="manage_room_types",
-        view_func=admin_required(admin_controller.manage_room_types),
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/admin/rooms",
-        endpoint="manage_rooms",
-        view_func=admin_required(admin_controller.manage_rooms),
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/admin/manage_meal_plans",
-        endpoint="manage_meal_plans",
-        view_func=admin_required(admin_controller.manage_meal_plans),
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/admin/extra_facilities",
-        endpoint="manage_extra_facilities",
-        view_func=admin_required(admin_controller.manage_extra_facilities),
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/admin/delete_meal_plan/<int:meal_id>",
-        endpoint="delete_meal_plan",
-        view_func=admin_required(admin_controller.delete_meal_plan),
-        methods=["POST"],
-    )
-    app.add_url_rule(
-        "/admin/market_segments",
-        endpoint="manage_market_segments",
-        view_func=admin_required(admin_controller.manage_market_segments),
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/admin/rooms/delete/<int:room_id>",
-        endpoint="delete_room",
-        view_func=admin_required(admin_controller.delete_room),
-        methods=["POST"],
-    )
-    app.add_url_rule(
-        "/admin/bookings/<int:booking_id>/view",
-        endpoint="admin_view_booking_for_hold",
-        view_func=admin_required(admin_controller.admin_view_booking_for_hold),
-    )
-    app.add_url_rule(
-        "/admin/bookings/<int:booking_id>/hold",
-        endpoint="admin_hold_booking",
-        view_func=admin_required(admin_controller.admin_hold_booking),
-        methods=["POST"],
-    )
-    app.add_url_rule(
-        "/admin/bookings",
-        endpoint="admin_view_bookings",
-        view_func=admin_required(admin_controller.admin_view_bookings),
-    )
-    app.add_url_rule(
-        "/admin/users",
-        endpoint="admin_view_users",
-        view_func=admin_required(admin_controller.admin_view_users),
-    )
+def reg(app):
+    routes = [
+        ("/admin_dashboard", "admin_dashboard", admin_controller.dash, None),
+        (
+            "/admin/room_types",
+            "manage_room_types",
+            admin_controller.types,
+            ["GET", "POST"],
+        ),
+        (
+            "/admin/rooms",
+            "manage_rooms",
+            admin_controller.rooms,
+            ["GET", "POST"],
+        ),
+        (
+            "/admin/manage_meal_plans",
+            "manage_meal_plans",
+            admin_controller.meals,
+            ["GET", "POST"],
+        ),
+        (
+            "/admin/extra_facilities",
+            "manage_extra_facilities",
+            admin_controller.extras,
+            ["GET", "POST"],
+        ),
+        (
+            "/admin/delete_meal_plan/<int:meal_id>",
+            "delete_meal_plan",
+            admin_controller.del_meal,
+            ["POST"],
+        ),
+        (
+            "/admin/market_segments",
+            "manage_market_segments",
+            admin_controller.segments,
+            ["GET", "POST"],
+        ),
+        (
+            "/admin/rooms/delete/<int:room_id>",
+            "delete_room",
+            admin_controller.del_room,
+            ["POST"],
+        ),
+        (
+            "/admin/bookings/<int:booking_id>/view",
+            "admin_view_booking_for_hold",
+            admin_controller.hold_view,
+            None,
+        ),
+        (
+            "/admin/bookings/<int:booking_id>/hold",
+            "admin_hold_booking",
+            admin_controller.hold_set,
+            ["POST"],
+        ),
+        (
+            "/admin/bookings",
+            "admin_view_bookings",
+            admin_controller.bookings,
+            None,
+        ),
+        ("/admin/users", "admin_view_users", admin_controller.users, None),
+    ]
+    for rule, endpoint, view_func, methods in routes:
+        app.add_url_rule(
+            rule,
+            endpoint=endpoint,
+            view_func=need_admin(view_func),
+            methods=methods,
+        )

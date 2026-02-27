@@ -1,17 +1,11 @@
 from hotel_app.controllers import auth_controller
 
 
-def register_auth_routes(app):
-    app.add_url_rule("/logout", endpoint="logout", view_func=auth_controller.logout)
-    app.add_url_rule(
-        "/register",
-        endpoint="register",
-        view_func=auth_controller.register,
-        methods=["GET", "POST"],
-    )
-    app.add_url_rule(
-        "/login",
-        endpoint="login",
-        view_func=auth_controller.login,
-        methods=["GET", "POST"],
-    )
+def reg(app):
+    routes = [
+        ("/logout", "logout", auth_controller.logout, None),
+        ("/register", "register", auth_controller.register, ["GET", "POST"]),
+        ("/login", "login", auth_controller.login, ["GET", "POST"]),
+    ]
+    for rule, endpoint, view_func, methods in routes:
+        app.add_url_rule(rule, endpoint=endpoint, view_func=view_func, methods=methods)

@@ -1,28 +1,11 @@
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB_PATH = os.path.join(BASE_DIR, "hotel_booking.db")
 
-
-def _load_env_file():
-    env_path = os.path.join(BASE_DIR, ".env")
-    if not os.path.exists(env_path):
-        return
-
-    with open(env_path, "r", encoding="utf-8") as env_file:
-        for raw_line in env_file:
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key and key not in os.environ:
-                os.environ[key] = value
-
-
-_load_env_file()
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY") or os.urandom(32).hex()
 
@@ -33,7 +16,6 @@ FEATURE_COLS_PATH = os.path.join(MODEL_DIR, "feature_cols.pkl")
 
 UPLOAD_FOLDER = os.path.join("static", "uploads", "rooms")
 MENU_PLAN_UPLOAD_FOLDER = os.path.join("static", "uploads", "menu_plans")
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
 KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "").strip()
 KHALTI_GATEWAY_URL = "https://dev.khalti.com/api/v2"
@@ -48,8 +30,13 @@ PENDING_PAYMENT_SESSION_KEYS = (
 DEFAULT_MODEL_FEATURE_COLS = [
     "lead_time",
     "no_of_special_requests",
-    "arrival_year",
     "avg_price_per_room",
     "market_segment_type_encoded",
-    "total_nights",
+    "repeated_guest",
+    "total_stays",
+    "no_of_week_nights",
+    "total_guests",
+    "required_car_parking_space",
+    "no_of_weekend_nights",
+    "no_of_previous_bookings_not_canceled",
 ]

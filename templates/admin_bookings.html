@@ -44,6 +44,9 @@
                                 <th>Room #</th>
                                 <th>Room Type</th>
                                 <th>Payment</th>
+                                <th>Lead Time</th>
+                                <th>Special Req</th>
+                                <th>Avg Price/Room</th>
                                 <th>Guests</th>
                                 <th>Nights</th>
                                 <th>Status</th>
@@ -61,6 +64,9 @@
                                 <td>{{ booking.room_number }}</td>
                                 <td>{{ booking.room_type_name }}</td>
                                 <td>{{ booking.segment_name }}</td>
+                                <td>{{ booking.lead_time }}</td>
+                                <td>{{ booking.no_of_special_requests }}</td>
+                                <td>{{ (booking.avg_price_per_room or 0)|round(2) }}</td>
                                 <td>{{ booking.total_guests or 0 }}</td>
                                 <td>{{ booking.total_nights }}</td>
 

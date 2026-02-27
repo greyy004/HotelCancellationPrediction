@@ -1,36 +1,33 @@
 from flask import session
 
 from hotel_app.config import PENDING_PAYMENT_SESSION_KEYS
-from hotel_app.models.booking_model import insert_booking
-from hotel_app.models.db import get_db_connection
-from hotel_app.models.extra_facility_model import summarize_selected_facilities
-from hotel_app.services.booking_service import validate_guest_limit
+from hotel_app.models import booking_model, db as db_model, extra_facility_model
+from hotel_app.services import booking_service
 
 
-def clear_pending_payment_session():
+def clear_pending():
     for key in PENDING_PAYMENT_SESSION_KEYS:
         session.pop(key, None)
 
 
-def create_booking_from_session(booking_data):
-    conn = get_db_connection()
+def create_from_session(booking_data):
+    conn = db_model.conn()
     try:
         customer_id = session["user_id"]
-        is_valid_guests, guest_error = validate_guest_limit(
+        is_valid_guests, guest_error = booking_service.check_guests(
             booking_data.get("room_id"),
             booking_data.get("total_guests"),
-            conn=conn,
         )
         if not is_valid_guests:
             print(f"Booking creation failed: {guest_error}")
             return False
 
         total_guests = int(booking_data["total_guests"])
-        selected_facilities, facility_count, _ = summarize_selected_facilities(
+        parking = int(booking_data.get("required_car_parking_space") or 0)
+        selected_facilities, facility_count, _ = extra_facility_model.summarize(
             booking_data.get("extra_facility_ids", []),
-            conn=conn,
         )
-        insert_booking(
+        booking_model.add(
             conn,
             customer_id=customer_id,
             room_id=booking_data["room_id"],
@@ -44,6 +41,7 @@ def create_booking_from_session(booking_data):
             no_of_special_requests=facility_count,
             total_nights=booking_data["total_nights"],
             total_guests=total_guests,
+            required_car_parking_space=parking,
             selected_facilities=selected_facilities,
         )
         conn.commit()

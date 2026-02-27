@@ -1,25 +1,26 @@
 import sqlite3
+
 from werkzeug.security import generate_password_hash
 
 DB_FILE = "hotel_booking.db"
 
-def create_admin(name, email, phone, password):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
 
-    hashed = generate_password_hash(password)
+def add_admin(name, email, phone, password):
+    hashed_password = generate_password_hash(password)
+    normalized_email = email.strip().lower()
 
     try:
-        c.execute("""
-            INSERT INTO customers (name, email, phone, password, is_admin)
-            VALUES (?, ?, ?, ?, ?)
-        """, (name, email.lower(), phone, hashed, 1))
-        conn.commit()
+        with sqlite3.connect(DB_FILE) as conn:
+            conn.execute(
+                """
+                INSERT INTO customers (name, email, phone, password, is_admin)
+                VALUES (?, ?, ?, ?, ?)
+            """,
+                (name, normalized_email, phone, hashed_password, 1),
+            )
         print("Admin created successfully!")
     except sqlite3.IntegrityError:
         print("Error: Email already exists.")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
@@ -29,4 +30,4 @@ if __name__ == "__main__":
     phone = input("Enter admin phone: ")
     password = input("Enter admin password: ")
 
-    create_admin(name, email, phone, password)
+    add_admin(name, email, phone, password)

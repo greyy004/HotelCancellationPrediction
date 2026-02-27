@@ -28,64 +28,34 @@
                 {% include "_flash_messages.html" %}
                 <form method="POST" id="profileForm" action="{{ url_for('user_profile') }}">
                     <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" value="{{ user['name'] }}" required>
-                    <small class="error field-error" id="name-error"></small>
+                    <input type="text" id="name" name="name" value="{{ user['name'] }}" required minlength="2">
 
                     <label for="phone">Phone</label>
-                    <input type="text" id="phone" name="phone" value="{{ user['phone'] }}">
-                    <small class="error field-error" id="phone-error"></small>
+                    <input type="text" id="phone" name="phone" value="{{ user['phone'] }}" pattern="[0-9]{7,15}" title="Enter 7 to 15 digits">
 
                     <label for="address">Address</label>
-                    <input type="text" id="address" name="address" value="{{ user['address'] }}" required>
-                    <small class="error field-error" id="address-error"></small>
+                    <input type="text" id="address" name="address" value="{{ user['address'] }}" required minlength="3">
 
                     <label for="current_password">Current Password</label>
-                    <input type="password" id="current_password" name="current_password" required>
-                    <small class="error field-error" id="password-error"></small>
+                    <input type="password" id="current_password" name="current_password" required minlength="8">
 
                     <button type="submit">Update Profile</button>
                 </form>
 
-                <script>
-                    document.getElementById('profileForm').addEventListener('submit', function (e) {
-                        let isValid = true;
-
-                        document.querySelectorAll('.error').forEach(el => el.textContent = '');
-
-                        const name = document.getElementById('name').value.trim();
-                        if (name.length < 5) {
-                            document.getElementById('name-error').textContent = 'Name must be at least 5 characters';
-                            isValid = false;
-                        }
-
-                        const phone = document.getElementById('phone').value.replace(/\D/g, '');
-                        if (phone && !/^9[78]\d{8}$/.test(phone)) {
-                            document.getElementById('phone-error').textContent = 'Enter a valid 10-digit Nepali number';
-                            isValid = false;
-                        }
-
-                        const address = document.getElementById('address').value.trim();
-                        if (address.length < 5) {
-                            document.getElementById('address-error').textContent = 'Address must be at least 5 characters';
-                            isValid = false;
-                        }
-
-                        const currentPassword = document.getElementById('current_password').value;
-                        if (currentPassword.length < 8) {
-                            document.getElementById('password-error').textContent = 'Password must be at least 8 characters';
-                            isValid = false;
-                        } else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(currentPassword)) {
-                            document.getElementById('password-error').textContent = 'Password must contain both letters and numbers';
-                            isValid = false;
-                        }
-
-                        if (!isValid) e.preventDefault(); // stop submission
-                    });
-</script>
-
             </div>
         </div>
     </div>
+<script>
+    const profileForm = document.getElementById("profileForm");
+    profileForm.addEventListener("submit", (e) => {
+        document.getElementById("name").value = document.getElementById("name").value.trim();
+        document.getElementById("address").value = document.getElementById("address").value.trim();
+        if (!profileForm.checkValidity()) {
+            e.preventDefault();
+            profileForm.reportValidity();
+        }
+    });
+</script>
 {% include "_flash_dismiss_script.html" %}
 </body>
 

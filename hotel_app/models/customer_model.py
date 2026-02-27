@@ -1,8 +1,8 @@
-from hotel_app.models.db import get_db_connection
+﻿from hotel_app.models import db as db_model
 
 
-def create_customer(name, email, phone, address, password_hash):
-    conn = get_db_connection()
+def add(name, email, phone, address, password_hash):
+    conn = db_model.conn()
     conn.execute(
         "INSERT INTO customers (name, email, phone, address, password) VALUES (?, ?, ?, ?, ?)",
         (name, email, phone, address, password_hash),
@@ -11,15 +11,15 @@ def create_customer(name, email, phone, address, password_hash):
     conn.close()
 
 
-def get_customer_by_email(email):
-    conn = get_db_connection()
+def get_by_email(email):
+    conn = db_model.conn()
     row = conn.execute("SELECT * FROM customers WHERE lower(email)=?", (email,)).fetchone()
     conn.close()
     return row
 
 
-def get_customer_by_id(customer_id):
-    conn = get_db_connection()
+def get_by_id(customer_id):
+    conn = db_model.conn()
     row = conn.execute(
         "SELECT * FROM customers WHERE customer_id = ?", (customer_id,)
     ).fetchone()
@@ -27,8 +27,8 @@ def get_customer_by_id(customer_id):
     return row
 
 
-def update_customer_profile(customer_id, name, phone, address):
-    conn = get_db_connection()
+def update(customer_id, name, phone, address):
+    conn = db_model.conn()
     conn.execute(
         "UPDATE customers SET name = ?, phone = ?, address = ? WHERE customer_id = ?",
         (name, phone, address, customer_id),
@@ -37,8 +37,8 @@ def update_customer_profile(customer_id, name, phone, address):
     conn.close()
 
 
-def get_customer_contact(customer_id):
-    conn = get_db_connection()
+def get_contact(customer_id):
+    conn = db_model.conn()
     row = conn.execute(
         "SELECT name, email, phone FROM customers WHERE customer_id=?",
         (customer_id,),
@@ -47,17 +47,15 @@ def get_customer_contact(customer_id):
     return row
 
 
-def count_non_admin_users():
-    conn = get_db_connection()
-    count = conn.execute(
-        "SELECT COUNT(*) FROM customers WHERE is_admin=0"
-    ).fetchone()[0]
+def count_users():
+    conn = db_model.conn()
+    count = conn.execute("SELECT COUNT(*) FROM customers WHERE is_admin=0").fetchone()[0]
     conn.close()
     return count
 
 
-def list_non_admin_users_with_booking_counts():
-    conn = get_db_connection()
+def list_users():
+    conn = db_model.conn()
     rows = conn.execute(
         """
         SELECT

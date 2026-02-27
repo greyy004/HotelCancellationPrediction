@@ -4,88 +4,101 @@ import requests
 from flask import flash, jsonify, redirect, request, session, url_for
 
 from hotel_app.config import KHALTI_GATEWAY_URL, KHALTI_SECRET_KEY
-from hotel_app.models.customer_model import get_customer_contact
-from hotel_app.models.extra_facility_model import summarize_selected_facilities
-from hotel_app.models.room_model import get_room_for_booking
-from hotel_app.services.booking_service import (
-    booking_window_from_payload,
-    is_room_available,
-    validate_guest_limit,
-)
-from hotel_app.services.payment_service import (
-    clear_pending_payment_session,
-    create_booking_from_session,
-)
+from hotel_app.models import customer_model, room_model
+from hotel_app.services import booking_service, payment_service
 
 
-def create_khalti_payment():
+def error_json(message, status_code=400):
+    return jsonify({"success": False, "error": message}), status_code
+
+
+def data_error(message, status_code=400):
+    return None, error_json(message, status_code)
+
+
+def khalti_headers():
+    return {
+        "Authorization": f"Key {KHALTI_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def prep_payment(data):
+    if not data or "booking_data" not in data:
+        return data_error("Invalid request data", 400)
+
+    booking_data = data["booking_data"]
+
+    try:
+        checkin, checkout, total_nights = booking_service.get_stay(booking_data)
+    except Exception:
+        return data_error("Invalid date selection", 400)
+
+    if total_nights <= 0:
+        return data_error("Stay must be at least 1 night", 400)
+
+    if not booking_service.is_available(booking_data["room_id"], checkin, checkout):
+        return data_error("Room unavailable for selected dates", 400)
+
+    is_valid_guests, guest_error = booking_service.check_guests(
+        booking_data.get("room_id"), booking_data.get("total_guests")
+    )
+    if not is_valid_guests:
+        return data_error(guest_error, 400)
+
+    room = room_model.get_booking(booking_data.get("room_id"))
+    if not room:
+        return data_error("Room not found", 400)
+
+    extra_facility_ids = booking_data.get("extra_facility_ids") or []
+    facility_count = len(extra_facility_ids)
+    facilities_total = float(booking_data.get("extra_facilities_total") or 0)
+    room_price = float(booking_data.get("avg_price_per_room") or room["price_per_night"] or 0)
+    expected_total = round((total_nights * room_price) + facilities_total, 2)
+
+    normalized_booking_data = dict(booking_data)
+    normalized_booking_data["room_id"] = int(room["room_id"])
+    normalized_booking_data["room_number"] = room["room_number"]
+    normalized_booking_data["avg_price_per_room"] = room_price
+    normalized_booking_data["extra_facility_ids"] = [int(f_id) for f_id in extra_facility_ids]
+    normalized_booking_data["extra_facilities_total"] = facilities_total
+    normalized_booking_data["no_of_special_requests"] = facility_count
+    normalized_booking_data["required_car_parking_space"] = int(
+        booking_data.get("required_car_parking_space") or 0
+    )
+
+    return (
+        {
+            "booking_data": normalized_booking_data,
+            "expected_total": expected_total,
+            "amount": int(expected_total * 100),
+        },
+        None,
+    )
+
+
+def go_dashboard(message, category):
+    flash(message, category)
+    return redirect(url_for("user_dashboard"))
+
+
+def create():
     if not KHALTI_SECRET_KEY:
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "error": (
-                        "Online payment is not configured. "
-                        "Set KHALTI_SECRET_KEY and restart the server."
-                    ),
-                }
-            ),
+        return error_json(
+            "Online payment is not configured. Set KHALTI_SECRET_KEY and restart the server.",
             503,
         )
 
     data = request.get_json()
+    payment_data, error_response = prep_payment(data)
+    if error_response:
+        return error_response
 
-    if not data or "amount" not in data or "booking_data" not in data:
-        return jsonify({"success": False, "error": "Invalid request data"}), 400
+    booking_data = payment_data["booking_data"]
+    expected_total = payment_data["expected_total"]
+    amount = payment_data["amount"]
 
-    try:
-        checkin, checkout, total_nights = booking_window_from_payload(data["booking_data"])
-    except Exception:
-        return jsonify({"success": False, "error": "Invalid date selection"}), 400
-
-    if total_nights <= 0:
-        return jsonify({"success": False, "error": "Stay must be at least 1 night"}), 400
-
-    if not is_room_available(data["booking_data"]["room_id"], checkin, checkout):
-        return (
-            jsonify({"success": False, "error": "Room unavailable for selected dates"}),
-            400,
-        )
-
-    is_valid_guests, guest_error = validate_guest_limit(
-        data["booking_data"].get("room_id"), data["booking_data"].get("total_guests")
-    )
-    if not is_valid_guests:
-        return jsonify({"success": False, "error": guest_error}), 400
-
-    room = get_room_for_booking(data["booking_data"].get("room_id"))
-    if not room:
-        return jsonify({"success": False, "error": "Room not found"}), 400
-
-    selected_facilities, facility_count, facilities_total = summarize_selected_facilities(
-        data["booking_data"].get("extra_facility_ids", [])
-    )
-    room_price = float(room["price_per_night"] or 0)
-    expected_total = round((total_nights * room_price) + facilities_total, 2)
-
-    try:
-        submitted_total = round(float(data["amount"]), 2)
-    except (TypeError, ValueError):
-        return jsonify({"success": False, "error": "Invalid payment amount"}), 400
-
-    if abs(submitted_total - expected_total) > 0.01:
-        return jsonify({"success": False, "error": "Booking amount mismatch"}), 400
-
-    booking_data = data["booking_data"]
-    booking_data["room_id"] = int(room["room_id"])
-    booking_data["room_number"] = room["room_number"]
-    booking_data["avg_price_per_room"] = room_price
-    booking_data["extra_facility_ids"] = [int(f["facility_id"]) for f in selected_facilities]
-    booking_data["extra_facilities_total"] = facilities_total
-    booking_data["no_of_special_requests"] = facility_count
-
-    amount = int(expected_total * 100)
-    user = get_customer_contact(session["user_id"])
+    user = customer_model.get_contact(session["user_id"])
 
     purchase_order_id = f"ORDER_{session['user_id']}_{int(datetime.now().timestamp())}"
 
@@ -102,16 +115,11 @@ def create_khalti_payment():
         },
     }
 
-    headers = {
-        "Authorization": f"Key {KHALTI_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
-
     try:
         response = requests.post(
             f"{KHALTI_GATEWAY_URL}/epayment/initiate/",
             json=payload,
-            headers=headers,
+            headers=khalti_headers(),
             timeout=30,
         )
 
@@ -135,135 +143,82 @@ def create_khalti_payment():
         error_detail = error_data.get(
             "detail", error_data.get("error_message", "Unknown error")
         )
-        return (
-            jsonify(
-                {
-                    "success": False,
-                    "error": f"Payment initiation failed: {error_detail}",
-                }
-            ),
-            400,
-        )
+        return error_json(f"Payment initiation failed: {error_detail}", 400)
 
     except requests.exceptions.RequestException as e:
         print(f"Khalti API request error: {e}")
-        return (
-            jsonify({"success": False, "error": "Unable to connect to payment gateway"}),
-            500,
-        )
+        return error_json("Unable to connect to payment gateway", 500)
     except Exception as e:
         print(f"Unexpected error in payment initiation: {e}")
-        return jsonify({"success": False, "error": "Payment initiation failed"}), 500
+        return error_json("Payment initiation failed", 500)
 
 
-def payment_success():
+def success():
     if not KHALTI_SECRET_KEY:
-        flash("Online payment is not configured. Contact admin.", "danger")
-        return redirect(url_for("user_dashboard"))
+        return go_dashboard(
+            "Online payment is not configured. Contact admin.", "danger"
+        )
 
     pidx = request.args.get("pidx")
 
     if not pidx:
-        flash("Invalid payment response.", "danger")
-        return redirect(url_for("user_dashboard"))
-
-    if pidx != session.get("pending_pidx"):
-        flash("Payment session mismatch. Please try again.", "danger")
-        return redirect(url_for("user_dashboard"))
-
-    headers = {
-        "Authorization": f"Key {KHALTI_SECRET_KEY}",
-        "Content-Type": "application/json",
-    }
+        return go_dashboard("Invalid payment response.", "danger")
 
     try:
         response = requests.post(
             f"{KHALTI_GATEWAY_URL}/epayment/lookup/",
             json={"pidx": pidx},
-            headers=headers,
+            headers=khalti_headers(),
             timeout=30,
         )
 
         if response.status_code != 200:
-            flash("Unable to verify payment. Contact support if charged.", "danger")
-            return redirect(url_for("user_dashboard"))
+            return go_dashboard(
+                "Unable to verify payment. Contact support if charged.",
+                "danger",
+            )
 
         payment_data = response.json()
         payment_status = payment_data.get("status", "").lower()
-        lookup_purchase_order = payment_data.get("purchase_order_id")
 
         if payment_status == "completed":
             booking_data = session.get("pending_booking")
-            expected_amount = int(float(session.get("pending_amount", 0)) * 100)
-            actual_amount = payment_data.get("total_amount", 0)
-            expected_po = session.get("purchase_order_id")
-
             if not booking_data:
-                flash("Booking data not found. Contact support.", "danger")
-                return redirect(url_for("user_dashboard"))
-
-            try:
-                checkin, checkout, total_nights = booking_window_from_payload(booking_data)
-                if total_nights <= 0:
-                    flash("Invalid stay length. Please rebook.", "danger")
-                    return redirect(url_for("user_dashboard"))
-
-                if not is_room_available(booking_data["room_id"], checkin, checkout):
-                    flash(
-                        "Selected room is no longer available for those dates.",
-                        "danger",
-                    )
-                    clear_pending_payment_session()
-                    return redirect(url_for("user_dashboard"))
-
-                is_valid_guests, guest_error = validate_guest_limit(
-                    booking_data.get("room_id"), booking_data.get("total_guests")
-                )
-                if not is_valid_guests:
-                    flash(guest_error, "danger")
-                    clear_pending_payment_session()
-                    return redirect(url_for("user_dashboard"))
-
-            except Exception:
-                flash("Invalid booking dates. Please rebook.", "danger")
-                clear_pending_payment_session()
-                return redirect(url_for("user_dashboard"))
-
-            if expected_po and lookup_purchase_order and expected_po != lookup_purchase_order:
-                flash("Payment reference mismatch. Contact support.", "danger")
-                clear_pending_payment_session()
-                return redirect(url_for("user_dashboard"))
-
-            if abs(actual_amount - expected_amount) > 1:
-                flash(
-                    f"Payment amount mismatch. Contact support with ref: {pidx}",
+                payment_service.clear_pending()
+                return go_dashboard(
+                    "Booking data not found. Contact support.",
                     "danger",
                 )
-                return redirect(url_for("user_dashboard"))
 
-            if create_booking_from_session(booking_data):
-                clear_pending_payment_session()
+            if payment_service.create_from_session(booking_data):
+                payment_service.clear_pending()
                 flash("Payment successful! Booking confirmed.", "success")
                 return redirect(url_for("my_bookings"))
 
-            flash("Payment received but booking failed.", "danger")
-            return redirect(url_for("user_dashboard"))
+            return go_dashboard(
+                "Payment received but booking failed.",
+                "danger",
+            )
 
         if payment_status in ["pending", "initiated", "user_initiated"]:
-            flash("Payment processing. Please wait and refresh.", "info")
-            return redirect(url_for("user_dashboard"))
+            return go_dashboard(
+                "Payment processing. Please wait and refresh.",
+                "info",
+            )
 
         flash(f"Payment {payment_status}. Please try again.", "warning")
-        clear_pending_payment_session()
+        payment_service.clear_pending()
         return redirect(url_for("user_dashboard"))
 
     except Exception as e:
         print(f"Payment verification error: {e}")
-        flash("Error verifying payment. Contact support if charged.", "danger")
-        return redirect(url_for("user_dashboard"))
+        return go_dashboard(
+            "Error verifying payment. Contact support if charged.",
+            "danger",
+        )
 
 
-def payment_cancel():
-    clear_pending_payment_session()
+def cancel():
+    payment_service.clear_pending()
     flash("Payment cancelled. You can try booking again.", "info")
     return redirect(url_for("user_dashboard"))

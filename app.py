@@ -1,11 +1,11 @@
 import os
 
-from hotel_app import create_app
+from hotel_app import build
 
 
-app = create_app()
+app = build()
 
 
 if __name__ == "__main__":
-    debug_mode = str(os.getenv("FLASK_DEBUG", "")).lower() in ("1", "true", "yes")
+    debug_mode = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes"}
     app.run(debug=debug_mode)
