@@ -1,21 +1,21 @@
-﻿from hotel_app.models import db as db_model
+from hotel_app.models import db as db_model
 
 
-def list_all():
+def list_meal_plans():
     conn = db_model.conn()
     rows = conn.execute("SELECT * FROM meal_plans").fetchall()
     conn.close()
     return rows
 
 
-def count():
+def count_meal_plans():
     conn = db_model.conn()
     count = conn.execute("SELECT COUNT(*) FROM meal_plans").fetchone()[0]
     conn.close()
     return count
 
 
-def add(meal_plan_name, image_path):
+def create_meal_plan(meal_plan_name, image_path):
     conn = db_model.conn()
     conn.execute(
         "INSERT INTO meal_plans (meal_plan_name, image_path) VALUES (?, ?)",
@@ -25,7 +25,7 @@ def add(meal_plan_name, image_path):
     conn.close()
 
 
-def get_by_id(meal_id):
+def find_meal_plan_by_id(meal_id):
     conn = db_model.conn()
     row = conn.execute(
         "SELECT meal_plan_id, meal_plan_name, image_path FROM meal_plans WHERE meal_plan_id = ?",
@@ -35,7 +35,7 @@ def get_by_id(meal_id):
     return row
 
 
-def used(meal_id):
+def count_bookings_using_meal_plan(meal_id):
     conn = db_model.conn()
     count = conn.execute(
         "SELECT COUNT(*) FROM bookings WHERE meal_plan_id = ?",
@@ -45,9 +45,10 @@ def used(meal_id):
     return count
 
 
-def remove(meal_id):
+def delete_meal_plan(meal_id):
     conn = db_model.conn()
     conn.execute("DELETE FROM meal_plans WHERE meal_plan_id = ?", (meal_id,))
     conn.commit()
     conn.close()
+
 

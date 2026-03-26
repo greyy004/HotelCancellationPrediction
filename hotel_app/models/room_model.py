@@ -1,7 +1,7 @@
-﻿from hotel_app.models import db as db_model
+from hotel_app.models import db as db_model
 
 
-def list_all():
+def list_all_public_rooms():
     conn = db_model.conn()
     rows = conn.execute(
         """
@@ -14,7 +14,7 @@ def list_all():
     return rows
 
 
-def get_public(room_id):
+def find_public_room(room_id):
     conn = db_model.conn()
     row = conn.execute(
         """
@@ -29,7 +29,7 @@ def get_public(room_id):
     return row
 
 
-def get_booking(room_id):
+def find_room_for_booking(room_id):
     conn = db_model.conn()
     row = conn.execute(
         """
@@ -45,14 +45,14 @@ def get_booking(room_id):
     return row
 
 
-def list_types():
+def list_room_types():
     conn = db_model.conn()
     rows = conn.execute("SELECT * FROM room_types").fetchall()
     conn.close()
     return rows
 
 
-def list_types_dash():
+def list_room_types_for_dashboard():
     conn = db_model.conn()
     rows = conn.execute(
         """
@@ -65,14 +65,14 @@ def list_types_dash():
     return rows
 
 
-def count():
+def count_rooms():
     conn = db_model.conn()
     count = conn.execute("SELECT COUNT(*) FROM rooms").fetchone()[0]
     conn.close()
     return count
 
 
-def add_type(name, description, price_per_night, image_path, max_guests):
+def create_room_type(name, description, price_per_night, image_path, max_guests):
     conn = db_model.conn()
     conn.execute(
         "INSERT INTO room_types (room_type_name,description,price_per_night,image_path,max_guests) VALUES (?,?,?,?,?)",
@@ -82,7 +82,7 @@ def add_type(name, description, price_per_night, image_path, max_guests):
     conn.close()
 
 
-def get_type_price(room_type_id):
+def find_room_type_price(room_type_id):
     conn = db_model.conn()
     row = conn.execute(
         "SELECT price_per_night FROM room_types WHERE room_type_id=?",
@@ -92,7 +92,7 @@ def get_type_price(room_type_id):
     return row
 
 
-def add(room_number, room_type_id, price_per_night):
+def create_room(room_number, room_type_id, price_per_night):
     conn = db_model.conn()
     conn.execute(
         "INSERT INTO rooms (room_number, room_type_id, price_per_night) VALUES (?, ?, ?)",
@@ -102,7 +102,7 @@ def add(room_number, room_type_id, price_per_night):
     conn.close()
 
 
-def list_admin():
+def list_rooms_for_admin():
     conn = db_model.conn()
     rows = conn.execute(
         """
@@ -117,21 +117,21 @@ def list_admin():
     return rows
 
 
-def get_by_id(room_id):
+def find_room_by_id(room_id):
     conn = db_model.conn()
     row = conn.execute("SELECT * FROM rooms WHERE room_id = ?", (room_id,)).fetchone()
     conn.close()
     return row
 
 
-def remove(room_id):
+def delete_room(room_id):
     conn = db_model.conn()
     conn.execute("DELETE FROM rooms WHERE room_id = ?", (room_id,))
     conn.commit()
     conn.close()
 
 
-def get_max_guests(room_id):
+def find_max_guests_for_room(room_id):
     conn = db_model.conn()
     row = conn.execute(
         """
@@ -145,3 +145,4 @@ def get_max_guests(room_id):
 
     conn.close()
     return row
+

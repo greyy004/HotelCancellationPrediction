@@ -35,6 +35,22 @@ This project is a hotel booking web app with cancellation risk prediction.
 python app.py
 ```
 
+## Optional Demo Seed (after DB reset)
+If you reset the database and want quick test data (1 room type, 1 room, 2 facilities):
+```bash
+python seed_demo_data.py
+```
+
+To seed a demo normal user account:
+```bash
+python seed_demo_user.py
+```
+
+To create an admin account:
+```bash
+python create_admin.py
+```
+
 ## Model Artifacts
 Prediction uses:
 - `model_files/random_forest_model.pkl`

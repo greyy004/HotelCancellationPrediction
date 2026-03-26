@@ -1,7 +1,7 @@
-﻿from hotel_app.models import db as db_model
+from hotel_app.models import db as db_model
 
 
-def add(name, email, phone, address, password_hash):
+def create_customer(name, email, phone, address, password_hash):
     conn = db_model.conn()
     conn.execute(
         "INSERT INTO customers (name, email, phone, address, password) VALUES (?, ?, ?, ?, ?)",
@@ -11,14 +11,14 @@ def add(name, email, phone, address, password_hash):
     conn.close()
 
 
-def get_by_email(email):
+def find_by_email(email):
     conn = db_model.conn()
     row = conn.execute("SELECT * FROM customers WHERE lower(email)=?", (email,)).fetchone()
     conn.close()
     return row
 
 
-def get_by_id(customer_id):
+def find_by_id(customer_id):
     conn = db_model.conn()
     row = conn.execute(
         "SELECT * FROM customers WHERE customer_id = ?", (customer_id,)
@@ -27,7 +27,7 @@ def get_by_id(customer_id):
     return row
 
 
-def update(customer_id, name, phone, address):
+def update_profile(customer_id, name, phone, address):
     conn = db_model.conn()
     conn.execute(
         "UPDATE customers SET name = ?, phone = ?, address = ? WHERE customer_id = ?",
@@ -37,7 +37,7 @@ def update(customer_id, name, phone, address):
     conn.close()
 
 
-def get_contact(customer_id):
+def get_contact_info(customer_id):
     conn = db_model.conn()
     row = conn.execute(
         "SELECT name, email, phone FROM customers WHERE customer_id=?",
@@ -47,14 +47,14 @@ def get_contact(customer_id):
     return row
 
 
-def count_users():
+def count_non_admin_users():
     conn = db_model.conn()
     count = conn.execute("SELECT COUNT(*) FROM customers WHERE is_admin=0").fetchone()[0]
     conn.close()
     return count
 
 
-def list_users():
+def list_users_with_booking_stats():
     conn = db_model.conn()
     rows = conn.execute(
         """
@@ -75,3 +75,4 @@ def list_users():
     ).fetchall()
     conn.close()
     return rows
+

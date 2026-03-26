@@ -20,7 +20,6 @@
                 <a href="{{ url_for('manage_rooms') }}">Rooms</a>
                 <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
                 <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
-                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
                 <a href="{{ url_for('admin_view_bookings') }}" class="active">Bookings</a>
                 <a href="{{ url_for('admin_view_users') }}">Users</a>
                 <a href="{{ url_for('logout') }}" class="logout">Logout</a>
@@ -98,17 +97,8 @@
                                 </td>
 
                                 <td>
-                                    {% if booking.booking_status == 'Canceled' %}
-                                    <span class="hold-note">-</span>
-                                    {% elif booking.is_on_hold %}
                                     <a href="{{ url_for('admin_view_booking_for_hold', booking_id=booking.booking_id) }}"
                                         class="view-btn">View</a>
-                                    {% elif pred.risk_level == "High" %}
-                                    <a href="{{ url_for('admin_view_booking_for_hold', booking_id=booking.booking_id) }}"
-                                        class="view-btn">View</a>
-                                    {% else %}
-                                    <span class="hold-note">-</span>
-                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

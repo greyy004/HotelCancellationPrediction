@@ -13,7 +13,7 @@ LEFT JOIN (
 BOOKING_HOLD_JOIN = "LEFT JOIN booking_hold h ON b.booking_id = h.booking_id"
 
 
-def add(
+def create_booking(
     conn,
     customer_id,
     room_id,
@@ -62,14 +62,13 @@ def add(
         conn.executemany(
             """
             INSERT INTO booking_extra_facilities (
-                booking_id, facility_id, facility_name, facility_price
-            ) VALUES (?, ?, ?, ?)
+                booking_id, facility_id, facility_price
+            ) VALUES (?, ?, ?)
         """,
             [
                 (
                     booking_id,
                     int(f["facility_id"]),
-                    str(f["facility_name"]),
                     float(f["price"] or 0),
                 )
                 for f in selected_facilities
@@ -107,7 +106,7 @@ def list_active_room(room_id):
     return rows
 
 
-def list_user(user_id):
+def list_user_bookings(user_id):
     conn = db_model.conn()
     rows = conn.execute(
         f"""
@@ -135,7 +134,7 @@ def list_user(user_id):
     return rows
 
 
-def get_user(booking_id, user_id):
+def find_user_booking(booking_id, user_id):
     conn = db_model.conn()
     row = conn.execute(
         "SELECT * FROM bookings WHERE booking_id = ? AND customer_id = ?",
@@ -145,21 +144,34 @@ def get_user(booking_id, user_id):
     return row
 
 
-def set_status(booking_id, status):
+def update_booking_status(booking_id, status):
     conn = db_model.conn()
-    conn.execute("UPDATE bookings SET booking_status = ? WHERE booking_id = ?", (status, booking_id))
+    conn.execute(
+        "UPDATE bookings SET booking_status = ? WHERE booking_id = ?",
+        (status, booking_id),
+    )
+    if status == "Canceled":
+        conn.execute(
+            """
+            UPDATE booking_hold
+            SET is_on_hold = 0,
+                noted_at = CURRENT_TIMESTAMP
+            WHERE booking_id = ?
+        """,
+            (booking_id,),
+        )
     conn.commit()
     conn.close()
 
 
-def count():
+def count_bookings():
     conn = db_model.conn()
     count = conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0]
     conn.close()
     return count
 
 
-def list_recent(limit=5):
+def list_recent_bookings(limit=5):
     conn = db_model.conn()
     rows = conn.execute(
         """
@@ -226,10 +238,23 @@ def get_hold_action(booking_id):
     conn = db_model.conn()
     row = conn.execute(
         """
-        SELECT b.*, s.segment_name, m.meal_plan_name, h.is_on_hold AS is_on_hold
+        SELECT
+            b.booking_id,
+            b.customer_id,
+            b.booking_status,
+            b.lead_time,
+            b.arrival_year,
+            b.arrival_month,
+            b.arrival_date,
+            b.avg_price_per_room,
+            b.no_of_special_requests,
+            b.total_nights,
+            b.total_guests,
+            b.required_car_parking_space,
+            s.segment_name,
+            COALESCE(h.is_on_hold, 0) AS is_on_hold
         FROM bookings b
         JOIN market_segments s ON b.market_segment_id = s.market_segment_id
-        LEFT JOIN meal_plans m ON b.meal_plan_id = m.meal_plan_id
         LEFT JOIN booking_hold h ON b.booking_id = h.booking_id
         WHERE b.booking_id = ?
     """,
@@ -259,14 +284,41 @@ def save_hold(booking_id, hold_reason, noted_by_admin_id):
     conn.close()
 
 
-def list_admin():
+def release_hold(booking_id, noted_by_admin_id):
+    conn = db_model.conn()
+    conn.execute(
+        """
+        UPDATE booking_hold
+        SET is_on_hold = 0,
+            noted_by_admin_id = ?,
+            noted_at = CURRENT_TIMESTAMP
+        WHERE booking_id = ?
+    """,
+        (noted_by_admin_id, booking_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_admin_bookings():
     conn = db_model.conn()
     rows = conn.execute(
         f"""
-        SELECT b.*,
+        SELECT
+               b.booking_id,
+               b.customer_id,
+               b.booking_status,
+               b.lead_time,
+               b.arrival_year,
+               b.arrival_month,
+               b.arrival_date,
+               b.avg_price_per_room,
+               b.no_of_special_requests,
+               b.total_nights,
+               b.total_guests,
+               b.required_car_parking_space,
                r.room_number as room_number,
                t.room_type_name as room_type_name,
-               m.meal_plan_name,
                s.segment_name,
                ef.extra_facility_count AS extra_facility_count,
                ef.extra_facility_total AS extra_facility_total,
@@ -274,7 +326,6 @@ def list_admin():
         FROM bookings b
         LEFT JOIN rooms r ON b.room_id = r.room_id
         LEFT JOIN room_types t ON r.room_type_id = t.room_type_id
-        LEFT JOIN meal_plans m ON b.meal_plan_id = m.meal_plan_id
         JOIN market_segments s ON b.market_segment_id = s.market_segment_id
         {EXTRA_FACILITY_SUMMARY_JOIN}
         {BOOKING_HOLD_JOIN}
@@ -314,3 +365,4 @@ def customer_history(customer_id, before_booking_id=None):
     previous_total = int((row["previous_total"] or 0) if row else 0)
     previous_not_canceled = int((row["previous_not_canceled"] or 0) if row else 0)
     return previous_total, previous_not_canceled
+

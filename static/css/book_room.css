@@ -332,6 +332,26 @@ label {
     font-size: 14px;
 }
 
+.inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: #1e293b;
+    margin: 0;
+}
+
+.inline-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-top: 0;
+}
+
+.parking-group {
+    align-self: center;
+    padding-top: 0;
+}
+
 input,
 select {
     width: 100%;

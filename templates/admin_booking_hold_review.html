@@ -20,7 +20,6 @@
                 <a href="{{ url_for('manage_rooms') }}">Rooms</a>
                 <a href="{{ url_for('manage_meal_plans') }}">Meal Plans</a>
                 <a href="{{ url_for('manage_extra_facilities') }}">Extra Facilities</a>
-                <a href="{{ url_for('manage_market_segments') }}">Segments</a>
                 <a href="{{ url_for('admin_view_bookings') }}" class="active">Bookings</a>
                 <a href="{{ url_for('admin_view_users') }}">Users</a>
                 <a href="{{ url_for('logout') }}" class="logout">Logout</a>
@@ -94,10 +93,12 @@
             {% elif booking.is_on_hold %}
             <section class="action-box muted-box">
                 This booking is already on hold.
-            </section>
-            {% elif risk_level != 'High' %}
-            <section class="action-box muted-box">
-                Only high-risk bookings can be placed on hold.
+                <form method="post" action="{{ url_for('admin_revoke_hold', booking_id=booking.booking_id) }}"
+                    style="margin-top: 12px;">
+                    <button type="submit" class="back-btn" style="background:#dc2626;color:#fff;border:none;">
+                        Revoke Hold
+                    </button>
+                </form>
             </section>
             {% else %}
             <section class="action-box">

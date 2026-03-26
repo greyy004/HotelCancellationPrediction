@@ -2,11 +2,15 @@ import sqlite3
 
 from hotel_app.config import DB_PATH
 
+DEFAULT_MARKET_SEGMENTS = [
+    "Online",
+    "Offline",
+]
 
-def init():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+DEFAULT_MEAL_PLANS = []
 
+
+def _create_schema(cursor):
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS customers (
@@ -16,7 +20,7 @@ def init():
             phone TEXT,
             address TEXT,
             password TEXT NOT NULL,
-            is_admin INTEGER DEFAULT 0
+            is_admin INTEGER NOT NULL DEFAULT 0 CHECK(is_admin IN (0,1))
         )
     """
     )
@@ -29,7 +33,7 @@ def init():
             description TEXT,
             price_per_night INTEGER,
             image_path TEXT,
-            max_guests INTEGER NOT NULL DEFAULT 2
+            max_guests INTEGER NOT NULL DEFAULT 2 CHECK(max_guests >= 1)
         )
     """
     )
@@ -70,8 +74,7 @@ def init():
         CREATE TABLE IF NOT EXISTS extra_facilities (
             facility_id INTEGER PRIMARY KEY AUTOINCREMENT,
             facility_name TEXT UNIQUE NOT NULL,
-            price REAL NOT NULL DEFAULT 0 CHECK(price >= 0),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            price REAL NOT NULL DEFAULT 0 CHECK(price >= 0)
         )
     """
     )
@@ -84,16 +87,16 @@ def init():
             room_id INTEGER NOT NULL,
             meal_plan_id INTEGER NOT NULL,
             market_segment_id INTEGER NOT NULL,
-            booking_status TEXT CHECK(booking_status IN ('Canceled','Not_Canceled')) NOT NULL,
-            lead_time INTEGER NOT NULL,
+            booking_status TEXT NOT NULL CHECK(booking_status IN ('Canceled','Not_Canceled')),
+            lead_time INTEGER NOT NULL DEFAULT 0 CHECK(lead_time >= 0),
             arrival_year INTEGER NOT NULL,
-            arrival_month INTEGER NOT NULL,
-            arrival_date INTEGER NOT NULL,
-            avg_price_per_room REAL NOT NULL,
-            no_of_special_requests INTEGER DEFAULT 0,
-            total_nights INTEGER,
-            total_guests INTEGER,
-            required_car_parking_space INTEGER DEFAULT 0,
+            arrival_month INTEGER NOT NULL CHECK(arrival_month BETWEEN 1 AND 12),
+            arrival_date INTEGER NOT NULL CHECK(arrival_date BETWEEN 1 AND 31),
+            avg_price_per_room REAL NOT NULL DEFAULT 0 CHECK(avg_price_per_room >= 0),
+            no_of_special_requests INTEGER NOT NULL DEFAULT 0 CHECK(no_of_special_requests >= 0),
+            total_nights INTEGER NOT NULL DEFAULT 1 CHECK(total_nights >= 1),
+            total_guests INTEGER NOT NULL DEFAULT 1 CHECK(total_guests >= 1),
+            required_car_parking_space INTEGER NOT NULL DEFAULT 0 CHECK(required_car_parking_space IN (0,1)),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(customer_id) REFERENCES customers(customer_id),
             FOREIGN KEY(room_id) REFERENCES rooms(room_id),
@@ -109,9 +112,7 @@ def init():
             booking_extra_facility_id INTEGER PRIMARY KEY AUTOINCREMENT,
             booking_id INTEGER NOT NULL,
             facility_id INTEGER NOT NULL,
-            facility_name TEXT NOT NULL,
-            facility_price REAL NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            facility_price REAL NOT NULL DEFAULT 0 CHECK(facility_price >= 0),
             UNIQUE(booking_id, facility_id),
             FOREIGN KEY(booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
             FOREIGN KEY(facility_id) REFERENCES extra_facilities(facility_id)
@@ -128,12 +129,59 @@ def init():
             hold_reason TEXT NOT NULL DEFAULT '',
             noted_by_admin_id INTEGER,
             noted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
             FOREIGN KEY(noted_by_admin_id) REFERENCES customers(customer_id)
         )
     """
     )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_bookings_customer_booking_status
+        ON bookings(customer_id, booking_id, booking_status)
+    """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_bookings_customer_status
+        ON bookings(customer_id, booking_status)
+    """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_bookings_room_status_arrival
+        ON bookings(room_id, booking_status, arrival_year, arrival_month, arrival_date)
+    """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_bookings_created_at
+        ON bookings(created_at)
+    """
+    )
+
+
+def _seed_static_data(cursor):
+    for segment_name in DEFAULT_MARKET_SEGMENTS:
+        cursor.execute(
+            "INSERT OR IGNORE INTO market_segments (segment_name) VALUES (?)",
+            (segment_name,),
+        )
+
+    for meal_plan_name in DEFAULT_MEAL_PLANS:
+        cursor.execute(
+            "INSERT OR IGNORE INTO meal_plans (meal_plan_name, image_path) VALUES (?, NULL)",
+            (meal_plan_name,),
+        )
+
+
+def init():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON")
+
+    _create_schema(cursor)
+    _seed_static_data(cursor)
 
     conn.commit()
     conn.close()
