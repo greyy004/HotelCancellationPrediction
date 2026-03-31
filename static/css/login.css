@@ -14,11 +14,14 @@ body {
     align-items: center;
     justify-content: center;
     padding: 2rem;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .auth-page {
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .auth-page::before {
@@ -197,6 +200,7 @@ input.invalid {
 @media (max-width: 480px) {
     body {
         padding: 1rem;
+        align-items: flex-start;
     }
 
     .auth-card {
