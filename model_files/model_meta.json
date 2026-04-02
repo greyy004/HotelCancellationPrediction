@@ -1,0 +1,37 @@
+{
+  "model_version": "rf_beginner_20260402_150327",
+  "trained_at_utc": "2026-04-02T15:03:27.538593+00:00",
+  "rows_used": 36194,
+  "feature_cols": [
+    "lead_time",
+    "no_of_special_requests",
+    "avg_price_per_room",
+    "market_segment_type_encoded",
+    "repeated_guest",
+    "total_stays",
+    "no_of_week_nights",
+    "total_guests",
+    "required_car_parking_space",
+    "no_of_weekend_nights",
+    "no_of_previous_bookings_not_canceled"
+  ],
+  "metrics": {
+    "random_split_default_cutoff_0_5": {
+      "accuracy": 0.8827186075424782,
+      "roc_auc": 0.9435626225930563,
+      "precision": 0.8315240990013026,
+      "recall": 0.805976430976431,
+      "f1": 0.8185509724300064,
+      "confusion_matrix": [
+        [
+          4475,
+          388
+        ],
+        [
+          461,
+          1915
+        ]
+      ]
+    }
+  }
+}
