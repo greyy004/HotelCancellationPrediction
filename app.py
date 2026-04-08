@@ -27,6 +27,7 @@ SEGMENT_MAP = {
     "Online": "Online",
     "Offline": "Offline",
 }
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 HIGH_RISK_THRESHOLD = 0.4
 MEDIUM_RISK_THRESHOLD = 0.2
@@ -184,6 +185,10 @@ def prediction_label(probability):
     return "Likely to NOT Cancel"
 
 
+def is_valid_email(email):
+    return bool(email and EMAIL_REGEX.match(email))
+
+
 def can_hold_booking(booking):
     # Final rule check before allowing "put on hold".
     if not booking:
@@ -220,10 +225,13 @@ def get_unavailable_ranges(room_id):
     # Return booked date ranges for calendar blocking on frontend.
     rows = booking_model.list_active_windows(room_id)
     ranges = []
+    today = date.today()
     for row in rows:
         start, end, nights = get_stay_row(row)
-        if nights > 0:
-            ranges.append({"start": start.isoformat(), "end": end.isoformat()})
+        if nights <= 0 or end <= today:
+            continue
+        display_start = max(start, today)
+        ranges.append({"start": display_start.isoformat(), "end": end.isoformat()})
     return ranges
 
 
@@ -355,6 +363,18 @@ def delete_uploaded_file(folder_path, filename):
         os.remove(file_path)
 
 
+def load_pickle_artifact(path, label, fallback):
+    if not os.path.exists(path):
+        return fallback
+
+    try:
+        with open(path, "rb") as file_obj:
+            return pickle.load(file_obj)
+    except Exception as e:
+        print(f"Could not load {label}: {e}")
+        return fallback
+
+
 # Session + booking create flow
 def clear_pending_payment():
     # Clear temporary booking data saved before payment callback.
@@ -439,26 +459,13 @@ def build():
 
     # Init DB and load prediction model artifacts.
     db_model.init()
-    if os.path.exists(config.RF_MODEL_PATH):
-        try:
-            with open(config.RF_MODEL_PATH, "rb") as file_obj:
-                rf_model = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load RF model: {e}")
-
-    if os.path.exists(config.ENCODERS_PATH):
-        try:
-            with open(config.ENCODERS_PATH, "rb") as file_obj:
-                encoders = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load encoders: {e}")
-
-    if os.path.exists(config.FEATURE_COLS_PATH):
-        try:
-            with open(config.FEATURE_COLS_PATH, "rb") as file_obj:
-                feature_cols = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load feature columns: {e}")
+    rf_model = load_pickle_artifact(config.RF_MODEL_PATH, "RF model", None)
+    encoders = load_pickle_artifact(config.ENCODERS_PATH, "encoders", {})
+    feature_cols = load_pickle_artifact(
+        config.FEATURE_COLS_PATH,
+        "feature columns",
+        config.DEFAULT_MODEL_FEATURE_COLS.copy(),
+    )
 
     # Public pages
     @app.get("/")
@@ -474,12 +481,14 @@ def build():
             return redirect(url_for("landing"))
 
         meal_plans = meal_plan_model.list_meal_plans()
+        extra_facilities = extra_facility_model.list_extra_facilities()
         unavailable_ranges = get_unavailable_ranges(room_id)
 
         return render_template(
             "view_room.html",
             room=room,
             meal_plans=meal_plans,
+            extra_facilities=extra_facilities,
             unavailable_ranges=unavailable_ranges,
         )
 
@@ -501,7 +510,7 @@ def build():
             if len(name) < 2:
                 flash("Name must be at least 2 characters.", "danger")
                 return render_template("register.html")
-            if not (email and re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)):
+            if not is_valid_email(email):
                 flash("Please enter a valid email address.", "danger")
                 return render_template("register.html")
             if phone and (not phone.isdigit() or not (7 <= len(phone) <= 15)):
@@ -535,7 +544,7 @@ def build():
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
 
-            if not (email and re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)) or not password:
+            if not is_valid_email(email) or not password:
                 flash("Please enter a valid email and password.", "danger")
                 return render_template("login.html", next=request.args.get("next"))
 
@@ -888,9 +897,19 @@ def build():
     @need_admin
     def manage_meal_plans():
         if request.method == "POST":
-            meal_plan_name = request.form["meal_plan_name"]
+            meal_plan_name = (request.form.get("meal_plan_name") or "").strip()
+            image_file = request.files.get("image_file")
+
+            if not meal_plan_name:
+                flash("Meal plan name is required.", "danger")
+                return redirect(url_for("manage_meal_plans"))
+
+            if not image_file or not image_file.filename:
+                flash("Meal plan image is required.", "danger")
+                return redirect(url_for("manage_meal_plans"))
+
             image_filename = save_uploaded_file(
-                request.files.get("image_file"),
+                image_file,
                 app.config["MENU_PLAN_UPLOAD_FOLDER"],
             )
 
@@ -1133,7 +1152,6 @@ def build():
 
 
 app = build()
-
 
 if __name__ == "__main__":
     app.run(debug=True)

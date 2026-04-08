@@ -46,8 +46,8 @@
                             placeholder="e.g., Breakfast Included" required>
                     </div>
                     <div class="form-group">
-                        <label for="image_file">Image (optional)</label>
-                        <input type="file" name="image_file" id="image_file" accept="image/*">
+                        <label for="image_file">Image *</label>
+                        <input type="file" name="image_file" id="image_file" accept="image/*" required>
                     </div>
 
                     <button class="btn btn-primary" type="submit">Add Meal Plan</button>
@@ -64,12 +64,8 @@
                     <div class="meal-card">
 
                         <div class="meal-img-container">
-                            {% if m.image_path %}
                             <img src="{{ url_for('static', filename='uploads/menu_plans/' + m.image_path) }}"
                                 alt="{{ m.meal_plan_name }}" class="meal-img">
-                            {% else %}
-                            <div class="meal-icon">Meal</div>
-                            {% endif %}
                         </div>
 
                         <div class="meal-content">
