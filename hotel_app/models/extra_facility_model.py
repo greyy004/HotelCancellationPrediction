@@ -32,6 +32,37 @@ def create_extra_facility(facility_name, price):
     conn.close()
 
 
+def find_extra_facility_by_id(facility_id):
+    conn = db_model.conn()
+    row = conn.execute(
+        """
+        SELECT facility_id, facility_name, price
+        FROM extra_facilities
+        WHERE facility_id = ?
+    """,
+        (facility_id,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def count_bookings_using_extra_facility(facility_id):
+    conn = db_model.conn()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM booking_extra_facilities WHERE facility_id = ?",
+        (facility_id,),
+    ).fetchone()[0]
+    conn.close()
+    return count
+
+
+def delete_extra_facility(facility_id):
+    conn = db_model.conn()
+    conn.execute("DELETE FROM extra_facilities WHERE facility_id = ?", (facility_id,))
+    conn.commit()
+    conn.close()
+
+
 def normalize_facility_ids(raw_facility_ids):
     if not isinstance(raw_facility_ids, list):
         return []

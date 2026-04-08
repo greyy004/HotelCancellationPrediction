@@ -92,6 +92,37 @@ def find_room_type_price(room_type_id):
     return row
 
 
+def find_room_type_by_id(room_type_id):
+    conn = db_model.conn()
+    row = conn.execute(
+        """
+        SELECT room_type_id, room_type_name, image_path
+        FROM room_types
+        WHERE room_type_id = ?
+    """,
+        (room_type_id,),
+    ).fetchone()
+    conn.close()
+    return row
+
+
+def count_rooms_using_type(room_type_id):
+    conn = db_model.conn()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM rooms WHERE room_type_id = ?",
+        (room_type_id,),
+    ).fetchone()[0]
+    conn.close()
+    return count
+
+
+def delete_room_type(room_type_id):
+    conn = db_model.conn()
+    conn.execute("DELETE FROM room_types WHERE room_type_id = ?", (room_type_id,))
+    conn.commit()
+    conn.close()
+
+
 def create_room(room_number, room_type_id, price_per_night):
     conn = db_model.conn()
     conn.execute(

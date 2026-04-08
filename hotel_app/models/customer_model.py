@@ -54,6 +54,23 @@ def count_non_admin_users():
     return count
 
 
+def count_bookings_for_user(customer_id):
+    conn = db_model.conn()
+    count = conn.execute(
+        "SELECT COUNT(*) FROM bookings WHERE customer_id = ?",
+        (customer_id,),
+    ).fetchone()[0]
+    conn.close()
+    return count
+
+
+def delete_user(customer_id):
+    conn = db_model.conn()
+    conn.execute("DELETE FROM customers WHERE customer_id = ? AND is_admin = 0", (customer_id,))
+    conn.commit()
+    conn.close()
+
+
 def list_users_with_booking_stats():
     conn = db_model.conn()
     rows = conn.execute(

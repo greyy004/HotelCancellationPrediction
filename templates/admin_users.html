@@ -45,6 +45,7 @@
                                 <th>Address</th>
                                 <th>Total Bookings</th>
                                 <th>Active Bookings</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -57,10 +58,17 @@
                                 <td>{{ user.address or "-" }}</td>
                                 <td>{{ user.total_bookings or 0 }}</td>
                                 <td>{{ user.active_bookings or 0 }}</td>
+                                <td>
+                                    <form method="POST"
+                                        action="{{ url_for('delete_user', user_id=user.customer_id) }}"
+                                        onsubmit="return confirm('Delete this user account?');">
+                                        <button type="submit" class="btn-delete">Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="7" class="empty-state">No users found.</td>
+                                <td colspan="8" class="empty-state">No users found.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

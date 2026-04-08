@@ -56,8 +56,6 @@
                                 </div>
                                 {% elif booking.booking_status == 'Not_Canceled' %}
                                 <span class="status-badge status-confirmed">Confirmed</span>
-                                {% elif booking.booking_status == 'Pending_Payment' %}
-                                <span class="status-badge status-pending">Pending</span>
                                 {% else %}
                                 <span class="status-badge status-cancelled">Cancelled</span>
                                 {% endif %}

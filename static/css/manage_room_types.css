@@ -252,6 +252,10 @@ body {
     flex-grow: 1;
 }
 
+.inline-delete-form {
+    margin-top: auto;
+}
+
 
 
 .empty-state {

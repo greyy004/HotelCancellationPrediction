@@ -140,6 +140,20 @@ form {
     background: #1d4ed8;
 }
 
+.btn-danger {
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
 .table-wrapper {
     overflow-x: auto;
 }
