@@ -687,17 +687,6 @@ def build():
     @need_user
     def create_khalti_payment():
         # Create payment request for Khalti (online payment).
-        if not config.KHALTI_SECRET_KEY:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Online payment is not configured. Set KHALTI_SECRET_KEY and restart the server.",
-                    }
-                ),
-                503,
-            )
-
         data = request.get_json()
         if not data or "booking_data" not in data:
             return jsonify({"success": False, "error": "Invalid request data"}), 400
@@ -1147,5 +1136,4 @@ app = build()
 
 
 if __name__ == "__main__":
-    debug_mode = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes"}
-    app.run(debug=debug_mode)
+    app.run(debug=True)
