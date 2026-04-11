@@ -186,12 +186,13 @@ body {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 20px;
+    border: 1px solid #e2e8f0;
 }
 
 .facilities-card h3 {
     font-size: 18px;
     margin-bottom: 14px;
-    color: #1e293b;
+    color: #0f172a;
 }
 
 .facilities-list {
@@ -204,12 +205,19 @@ body {
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 12px;
-    background: #f8fafc;
-    color: #334155;
+    border: 1px solid #d7dee7;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: #1e293b;
     font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.facility-option:hover {
+    border-color: #bfdbfe;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+    transform: translateY(-1px);
 }
 
 .facility-option input[type="checkbox"] {
@@ -218,8 +226,9 @@ body {
 }
 
 .facility-option strong {
-    color: #0f766e;
+    color: #1e40af;
     font-size: 13px;
+    font-weight: 700;
 }
 
 .facilities-empty {
@@ -243,7 +252,7 @@ body {
 }
 
 .facilities-summary strong {
-    color: #1e293b;
+    color: #0f172a;
 }
 
 .summary-card {

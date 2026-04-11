@@ -58,6 +58,7 @@
                                 <th>ID</th>
                                 <th>Facility</th>
                                 <th>Price</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -66,10 +67,17 @@
                                 <td>#{{ f.facility_id }}</td>
                                 <td>{{ f.facility_name }}</td>
                                 <td>Rs {{ "%.2f"|format(f.price|float) }}</td>
+                                <td>
+                                    <form method="POST"
+                                        action="{{ url_for('delete_extra_facility', facility_id=f.facility_id) }}"
+                                        onsubmit="return confirm('Delete this extra facility?');">
+                                        <button type="submit" class="btn btn-danger">Delete</button>
+                                    </form>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="3" class="empty-state">No extra facilities yet.</td>
+                                <td colspan="4" class="empty-state">No extra facilities yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

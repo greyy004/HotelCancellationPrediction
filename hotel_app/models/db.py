@@ -7,8 +7,6 @@ DEFAULT_MARKET_SEGMENTS = [
     "Offline",
 ]
 
-DEFAULT_MEAL_PLANS = []
-
 
 def _create_schema(cursor):
     cursor.execute(
@@ -166,12 +164,6 @@ def _seed_static_data(cursor):
         cursor.execute(
             "INSERT OR IGNORE INTO market_segments (segment_name) VALUES (?)",
             (segment_name,),
-        )
-
-    for meal_plan_name in DEFAULT_MEAL_PLANS:
-        cursor.execute(
-            "INSERT OR IGNORE INTO meal_plans (meal_plan_name, image_path) VALUES (?, NULL)",
-            (meal_plan_name,),
         )
 
 

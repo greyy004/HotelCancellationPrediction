@@ -24,7 +24,10 @@
 
     <div class="view-room-container">
         <div class="room-detail-header">
-            <h1>Room Details</h1>
+            <div>
+                <p class="eyebrow">Public Room Preview</p>
+                <h1>Room Details</h1>
+            </div>
             <a href="{{ url_for('landing') }}" class="back-link">
                 &larr; Back to Rooms
             </a>
@@ -34,23 +37,39 @@
         <div class="main-content-layout">
             
             {% if meal_plans and meal_plans|length > 0 %}
-            <div class="meal-plans-sidebar">
-                <h3>Available Meal Plans</h3>
-                <div class="meal-plans-list">
-                    {% for meal_plan in meal_plans %}
-                    {% if meal_plan.meal_plan_name != 'No Meal' %}
-                    <div class="meal-plan-item">
-                        {% if meal_plan.image_path %}
-                        <img src="{{ url_for('static', filename='uploads/menu_plans/' ~ meal_plan.image_path) }}" 
-                             alt="{{ meal_plan.meal_plan_name }}">
-                        {% else %}
-                        <img src="https://via.placeholder.com/300x150/e5e7eb/6b7280?text=Meal+Plan" 
-                             alt="Meal Plan">
+            <div class="sidebar-stack">
+                <div class="meal-plans-sidebar">
+                    <h3>Available Meal Plans</h3>
+                    <div class="meal-plans-list">
+                        {% for meal_plan in meal_plans %}
+                        {% if meal_plan.meal_plan_name != 'No Meal' %}
+                        <div class="meal-plan-item">
+                            <img src="{{ url_for('static', filename='uploads/menu_plans/' ~ meal_plan.image_path) }}" 
+                                alt="{{ meal_plan.meal_plan_name }}">
+                            <div class="meal-plan-name">{{ meal_plan.meal_plan_name }}</div>
+                        </div>
                         {% endif %}
-                        <div class="meal-plan-name">{{ meal_plan.meal_plan_name }}</div>
+                        {% endfor %}
                     </div>
+                </div>
+
+                <div class="extras-sidebar">
+                    <h3>Extra Facilities</h3>
+                    {% if extra_facilities and extra_facilities|length > 0 %}
+                    <div class="extras-list">
+                        {% for facility in extra_facilities %}
+                        <div class="extra-item">
+                            <div class="extra-item-copy">
+                                <strong>{{ facility.facility_name }}</strong>
+                                <span>Optional add-on during booking</span>
+                            </div>
+                            <div class="extra-price">Rs {{ "%.2f"|format(facility.price|float) }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="extras-empty">No extra facilities available right now.</p>
                     {% endif %}
-                    {% endfor %}
                 </div>
             </div>
             {% endif %}
@@ -73,12 +92,51 @@
                         {% if room.description %}
                         <p class="room-description">{{ room.description }}</p>
                         {% endif %}
+
+                        <div class="quick-highlights">
+                            <span class="highlight-pill">Flexible stay planning</span>
+                            <span class="highlight-pill">Live availability shown below</span>
+                            <span class="highlight-pill">Secure online or hotel payment</span>
+                        </div>
                     </div>
 
                     <div class="price-section">
                         <div class="price-label">Starting from</div>
-                        <div class="price-amount">Rs {{ room.price_per_night|default(0) }}</div>
+                        <div class="price-amount">Rs {{ "%.2f"|format(room.price_per_night|default(0)|float) }}</div>
                         <div class="price-per-night">per night</div>
+                    </div>
+                </div>
+
+                <div class="booking-preview-card">
+                    <div class="preview-header">
+                        <div>
+                            <p class="preview-label">What You Can Do After Login</p>
+                            <h3>Complete Booking Setup</h3>
+                        </div>
+                        <span class="preview-badge">Guest View</span>
+                    </div>
+
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <strong>Choose Dates</strong>
+                            <span>See blocked dates, select check-in and check-out, and calculate total nights instantly.</span>
+                        </div>
+                        <div class="preview-item">
+                            <strong>Select Guests</strong>
+                            <span>Confirm guest count, parking needs, and room capacity before booking.</span>
+                        </div>
+                        <div class="preview-item">
+                            <strong>Add Meal Plans</strong>
+                            <span>Pick from {{ meal_plans|length if meal_plans else 0 }} available meal plan option{{ '' if meal_plans|length == 1 else 's' }}.</span>
+                        </div>
+                        <div class="preview-item">
+                            <strong>Add Extra Facilities</strong>
+                            <span>Choose from {{ extra_facilities|length if extra_facilities else 0 }} optional add-on{{ '' if extra_facilities|length == 1 else 's' }} during booking.</span>
+                        </div>
+                        <div class="preview-item">
+                            <strong>Pick Payment Type</strong>
+                            <span>Book for hotel payment or pay online when the option is available.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -92,6 +150,18 @@
                         <div class="info-item">
                             <strong>Room Type</strong>
                             <span>{{ room.room_type_name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Price Per Night</strong>
+                            <span>Rs {{ "%.2f"|format(room.price_per_night|default(0)|float) }}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Meal Plans Available</strong>
+                            <span>{{ meal_plans|length if meal_plans else 0 }}</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Extra Facilities</strong>
+                            <span>{{ extra_facilities|length if extra_facilities else 0 }}</span>
                         </div>
                     </div>
 
@@ -112,10 +182,17 @@
 
                 
                 <div class="book-button-container">
+                    <div class="cta-copy">
+                        {% if session.get('user_id') %}
+                        You are signed in, so you can continue directly to the full booking form for this room.
+                        {% else %}
+                        Sign in to unlock the full booking page with date selection, meal plans, guest count, and payment options.
+                        {% endif %}
+                    </div>
                     <a href="{{ url_for('book_room', room_id=room.room_id) if session.get('user_id') else url_for('login', next=url_for('book_room', room_id=room.room_id)) }}" 
                        class="btn-book-large">
                         {% if session.get('user_id') %}
-                            Book Now
+                            Continue to Booking
                         {% else %}
                             Login to Book
                         {% endif %}

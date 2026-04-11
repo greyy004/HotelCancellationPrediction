@@ -27,6 +27,7 @@ SEGMENT_MAP = {
     "Online": "Online",
     "Offline": "Offline",
 }
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 HIGH_RISK_THRESHOLD = 0.4
 MEDIUM_RISK_THRESHOLD = 0.2
@@ -184,7 +185,11 @@ def prediction_label(probability):
     return "Likely to NOT Cancel"
 
 
-def can_hold_booking(booking, probability):
+def is_valid_email(email):
+    return bool(email and EMAIL_REGEX.match(email))
+
+
+def can_hold_booking(booking):
     # Final rule check before allowing "put on hold".
     if not booking:
         return False, "Booking not found.", "danger"
@@ -220,10 +225,13 @@ def get_unavailable_ranges(room_id):
     # Return booked date ranges for calendar blocking on frontend.
     rows = booking_model.list_active_windows(room_id)
     ranges = []
+    today = date.today()
     for row in rows:
         start, end, nights = get_stay_row(row)
-        if nights > 0:
-            ranges.append({"start": start.isoformat(), "end": end.isoformat()})
+        if nights <= 0 or end <= today:
+            continue
+        display_start = max(start, today)
+        ranges.append({"start": display_start.isoformat(), "end": end.isoformat()})
     return ranges
 
 
@@ -253,6 +261,120 @@ def check_guests(room_id, total_guests):
     return True, None
 
 
+def validate_booking_request(room_id, booking_data):
+    is_valid_guests, guest_error = check_guests(room_id, booking_data.get("total_guests"))
+    if not is_valid_guests:
+        return False, guest_error, None, None, None
+
+    try:
+        checkin, checkout, total_nights = get_stay(booking_data)
+    except Exception:
+        return False, "Invalid date selection", None, None, None
+
+    if total_nights <= 0:
+        return False, "Stay must be at least 1 night", None, None, None
+
+    if not is_room_available(room_id, checkin, checkout):
+        return False, "Room unavailable for selected dates", None, None, None
+
+    return True, None, checkin, checkout, total_nights
+
+
+def create_booking_record(conn, customer_id, room_id, booking_data, total_nights=None):
+    total_guests = int(booking_data["total_guests"])
+    parking = int(booking_data.get("required_car_parking_space") or 0)
+    selected_facilities, facility_count, _ = extra_facility_model.summarize_selected_facilities(
+        booking_data.get("extra_facility_ids", []),
+    )
+    booking_model.create_booking(
+        conn,
+        customer_id=customer_id,
+        room_id=room_id,
+        meal_plan_id=booking_data["meal_plan_id"],
+        market_segment_id=booking_data["market_segment_id"],
+        lead_time=booking_data["lead_time"],
+        arrival_year=booking_data["arrival_year"],
+        arrival_month=booking_data["arrival_month"],
+        arrival_date=booking_data["arrival_date"],
+        avg_price_per_room=booking_data["avg_price_per_room"],
+        no_of_special_requests=facility_count,
+        total_nights=total_nights if total_nights is not None else booking_data["total_nights"],
+        total_guests=total_guests,
+        required_car_parking_space=parking,
+        selected_facilities=selected_facilities,
+    )
+
+
+def normalize_payment_booking_data(booking_data, room):
+    extra_facility_ids = booking_data.get("extra_facility_ids") or []
+    facilities_total = float(booking_data.get("extra_facilities_total") or 0)
+    room_price = float(booking_data.get("avg_price_per_room") or room["price_per_night"] or 0)
+
+    normalized = dict(booking_data)
+    normalized["room_id"] = int(room["room_id"])
+    normalized["room_number"] = room["room_number"]
+    normalized["avg_price_per_room"] = room_price
+    normalized["extra_facility_ids"] = [int(f_id) for f_id in extra_facility_ids]
+    normalized["extra_facilities_total"] = facilities_total
+    normalized["required_car_parking_space"] = int(
+        normalized.get("required_car_parking_space") or 0
+    )
+    return normalized, room_price, facilities_total
+
+
+def build_khalti_payload(booking_data, amount, purchase_order_id, user):
+    return {
+        "return_url": url_for("payment_success", _external=True),
+        "website_url": url_for("landing", _external=True),
+        "amount": amount,
+        "purchase_order_id": purchase_order_id,
+        "purchase_order_name": f"Hotel Room - {booking_data['room_number']}",
+        "customer_info": {
+            "name": user["name"] if user else "Guest",
+            "email": user["email"] if user else "guest@hotel.com",
+            "phone": user["phone"] if user and user["phone"] else "9800000000",
+        },
+    }
+
+
+def khalti_headers():
+    return {
+        "Authorization": f"Key {config.KHALTI_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+def save_uploaded_file(file_storage, folder_path):
+    if not file_storage or not file_storage.filename:
+        return None
+
+    filename = secure_filename(file_storage.filename)
+    save_path = os.path.join(folder_path, filename)
+    file_storage.save(save_path)
+    return filename
+
+
+def delete_uploaded_file(folder_path, filename):
+    if not filename:
+        return
+
+    file_path = os.path.join(folder_path, filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
+def load_pickle_artifact(path, label, fallback):
+    if not os.path.exists(path):
+        return fallback
+
+    try:
+        with open(path, "rb") as file_obj:
+            return pickle.load(file_obj)
+    except Exception as e:
+        print(f"Could not load {label}: {e}")
+        return fallback
+
+
 # Session + booking create flow
 def clear_pending_payment():
     # Clear temporary booking data saved before payment callback.
@@ -265,35 +387,19 @@ def create_booking_from_session_data(booking_data):
     conn = db_model.conn()
     try:
         customer_id = session["user_id"]
-        is_valid_guests, guest_error = check_guests(
+        is_valid, error_message, _, _, _ = validate_booking_request(
             booking_data.get("room_id"),
-            booking_data.get("total_guests"),
+            booking_data,
         )
-        if not is_valid_guests:
-            print(f"Booking creation failed: {guest_error}")
+        if not is_valid:
+            print(f"Booking creation failed: {error_message}")
             return False
 
-        total_guests = int(booking_data["total_guests"])
-        parking = int(booking_data.get("required_car_parking_space") or 0)
-        selected_facilities, facility_count, _ = extra_facility_model.summarize_selected_facilities(
-            booking_data.get("extra_facility_ids", []),
-        )
-        booking_model.create_booking(
-            conn,
+        create_booking_record(
+            conn=conn,
             customer_id=customer_id,
             room_id=booking_data["room_id"],
-            meal_plan_id=booking_data["meal_plan_id"],
-            market_segment_id=booking_data["market_segment_id"],
-            lead_time=booking_data["lead_time"],
-            arrival_year=booking_data["arrival_year"],
-            arrival_month=booking_data["arrival_month"],
-            arrival_date=booking_data["arrival_date"],
-            avg_price_per_room=booking_data["avg_price_per_room"],
-            no_of_special_requests=facility_count,
-            total_nights=booking_data["total_nights"],
-            total_guests=total_guests,
-            required_car_parking_space=parking,
-            selected_facilities=selected_facilities,
+            booking_data=booking_data,
         )
         conn.commit()
         return True
@@ -306,17 +412,6 @@ def create_booking_from_session_data(booking_data):
 
 
 # Auth decorators
-def need_login(view_func):
-    @wraps(view_func)
-    def wrapped(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Please login first.", "warning")
-            return redirect(url_for("login", next=request.url))
-        return view_func(*args, **kwargs)
-
-    return wrapped
-
-
 def need_admin(view_func):
     @wraps(view_func)
     def wrapped(*args, **kwargs):
@@ -364,26 +459,13 @@ def build():
 
     # Init DB and load prediction model artifacts.
     db_model.init()
-    if os.path.exists(config.RF_MODEL_PATH):
-        try:
-            with open(config.RF_MODEL_PATH, "rb") as file_obj:
-                rf_model = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load RF model: {e}")
-
-    if os.path.exists(config.ENCODERS_PATH):
-        try:
-            with open(config.ENCODERS_PATH, "rb") as file_obj:
-                encoders = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load encoders: {e}")
-
-    if os.path.exists(config.FEATURE_COLS_PATH):
-        try:
-            with open(config.FEATURE_COLS_PATH, "rb") as file_obj:
-                feature_cols = pickle.load(file_obj)
-        except Exception as e:
-            print(f"Could not load feature columns: {e}")
+    rf_model = load_pickle_artifact(config.RF_MODEL_PATH, "RF model", None)
+    encoders = load_pickle_artifact(config.ENCODERS_PATH, "encoders", {})
+    feature_cols = load_pickle_artifact(
+        config.FEATURE_COLS_PATH,
+        "feature columns",
+        config.DEFAULT_MODEL_FEATURE_COLS.copy(),
+    )
 
     # Public pages
     @app.get("/")
@@ -399,12 +481,14 @@ def build():
             return redirect(url_for("landing"))
 
         meal_plans = meal_plan_model.list_meal_plans()
+        extra_facilities = extra_facility_model.list_extra_facilities()
         unavailable_ranges = get_unavailable_ranges(room_id)
 
         return render_template(
             "view_room.html",
             room=room,
             meal_plans=meal_plans,
+            extra_facilities=extra_facilities,
             unavailable_ranges=unavailable_ranges,
         )
 
@@ -426,7 +510,7 @@ def build():
             if len(name) < 2:
                 flash("Name must be at least 2 characters.", "danger")
                 return render_template("register.html")
-            if not (email and re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)):
+            if not is_valid_email(email):
                 flash("Please enter a valid email address.", "danger")
                 return render_template("register.html")
             if phone and (not phone.isdigit() or not (7 <= len(phone) <= 15)):
@@ -460,7 +544,7 @@ def build():
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
 
-            if not (email and re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email)) or not password:
+            if not is_valid_email(email) or not password:
                 flash("Please enter a valid email and password.", "danger")
                 return render_template("login.html", next=request.args.get("next"))
 
@@ -547,43 +631,19 @@ def build():
 
             conn = db_model.conn()
             try:
-                is_valid_guests, guest_error = check_guests(
-                    selected_room_id, booking_data.get("total_guests")
+                is_valid, error_message, _, _, total_nights = validate_booking_request(
+                    selected_room_id,
+                    booking_data,
                 )
-                if not is_valid_guests:
-                    return jsonify({"success": False, "message": guest_error}), 400
+                if not is_valid:
+                    return jsonify({"success": False, "message": error_message}), 400
 
-                total_guests = int(booking_data.get("total_guests"))
-                parking = int(booking_data.get("required_car_parking_space") or 0)
-                checkin, checkout, total_nights = get_stay(booking_data)
-                if total_nights <= 0:
-                    return jsonify({"success": False, "message": "Stay must be at least 1 night"}), 400
-
-                if not is_room_available(selected_room_id, checkin, checkout):
-                    return jsonify(
-                        {"success": False, "message": "Room unavailable for selected dates."}
-                    ), 400
-
-                selected_facilities, facility_count, _ = extra_facility_model.summarize_selected_facilities(
-                    booking_data.get("extra_facility_ids", []),
-                )
-
-                booking_model.create_booking(
-                    conn,
+                create_booking_record(
+                    conn=conn,
                     customer_id=customer_id,
                     room_id=selected_room_id,
-                    meal_plan_id=booking_data["meal_plan_id"],
-                    market_segment_id=booking_data["market_segment_id"],
-                    lead_time=booking_data["lead_time"],
-                    arrival_year=booking_data["arrival_year"],
-                    arrival_month=booking_data["arrival_month"],
-                    arrival_date=booking_data["arrival_date"],
-                    avg_price_per_room=booking_data["avg_price_per_room"],
-                    no_of_special_requests=facility_count,
+                    booking_data=booking_data,
                     total_nights=total_nights,
-                    total_guests=total_guests,
-                    required_car_parking_space=parking,
-                    selected_facilities=selected_facilities,
                 )
                 conn.commit()
                 return jsonify(
@@ -636,78 +696,31 @@ def build():
     @need_user
     def create_khalti_payment():
         # Create payment request for Khalti (online payment).
-        if not config.KHALTI_SECRET_KEY:
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": "Online payment is not configured. Set KHALTI_SECRET_KEY and restart the server.",
-                    }
-                ),
-                503,
-            )
-
         data = request.get_json()
         if not data or "booking_data" not in data:
             return jsonify({"success": False, "error": "Invalid request data"}), 400
 
         booking_data = data["booking_data"]
-        try:
-            checkin, checkout, total_nights = get_stay(booking_data)
-        except Exception:
-            return jsonify({"success": False, "error": "Invalid date selection"}), 400
-
-        if total_nights <= 0:
-            return jsonify({"success": False, "error": "Stay must be at least 1 night"}), 400
-        if not is_room_available(booking_data["room_id"], checkin, checkout):
-            return jsonify({"success": False, "error": "Room unavailable for selected dates"}), 400
-
-        is_valid_guests, guest_error = check_guests(
+        is_valid, error_message, _, _, total_nights = validate_booking_request(
             booking_data.get("room_id"),
-            booking_data.get("total_guests"),
+            booking_data,
         )
-        if not is_valid_guests:
-            return jsonify({"success": False, "error": guest_error}), 400
+        if not is_valid:
+            return jsonify({"success": False, "error": error_message}), 400
 
         room = room_model.find_room_for_booking(booking_data.get("room_id"))
         if not room:
             return jsonify({"success": False, "error": "Room not found"}), 400
 
-        extra_facility_ids = booking_data.get("extra_facility_ids") or []
-        facilities_total = float(booking_data.get("extra_facilities_total") or 0)
-        room_price = float(booking_data.get("avg_price_per_room") or room["price_per_night"] or 0)
+        booking_data, room_price, facilities_total = normalize_payment_booking_data(booking_data, room)
         expected_total = round((total_nights * room_price) + facilities_total, 2)
         amount = int(expected_total * 100)
-
-        booking_data = dict(booking_data)
-        booking_data["room_id"] = int(room["room_id"])
-        booking_data["room_number"] = room["room_number"]
-        booking_data["avg_price_per_room"] = room_price
-        booking_data["extra_facility_ids"] = [int(f_id) for f_id in extra_facility_ids]
-        booking_data["extra_facilities_total"] = facilities_total
-        booking_data["required_car_parking_space"] = int(
-            booking_data.get("required_car_parking_space") or 0
-        )
 
         user = customer_model.get_contact_info(session["user_id"])
         purchase_order_id = f"ORDER_{session['user_id']}_{int(datetime.now().timestamp())}"
 
-        payload = {
-            "return_url": url_for("payment_success", _external=True),
-            "website_url": url_for("landing", _external=True),
-            "amount": amount,
-            "purchase_order_id": purchase_order_id,
-            "purchase_order_name": f"Hotel Room - {booking_data['room_number']}",
-            "customer_info": {
-                "name": user["name"] if user else "Guest",
-                "email": user["email"] if user else "guest@hotel.com",
-                "phone": user["phone"] if user and user["phone"] else "9800000000",
-            },
-        }
-        headers = {
-            "Authorization": f"Key {config.KHALTI_SECRET_KEY}",
-            "Content-Type": "application/json",
-        }
+        payload = build_khalti_payload(booking_data, amount, purchase_order_id, user)
+        headers = khalti_headers()
 
         try:
             response = requests.post(
@@ -761,10 +774,7 @@ def build():
             flash("Invalid payment response.", "danger")
             return redirect(url_for("user_dashboard"))
 
-        headers = {
-            "Authorization": f"Key {config.KHALTI_SECRET_KEY}",
-            "Content-Type": "application/json",
-        }
+        headers = khalti_headers()
 
         try:
             response = requests.post(
@@ -848,13 +858,10 @@ def build():
             if max_guests < 1:
                 max_guests = 2
 
-            file = request.files.get("image_file")
-            img_filename = None
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                file.save(save_path)
-                img_filename = filename
+            img_filename = save_uploaded_file(
+                request.files.get("image_file"),
+                app.config["UPLOAD_FOLDER"],
+            )
 
             try:
                 room_model.create_room_type(name, desc, price, img_filename, max_guests)
@@ -890,15 +897,21 @@ def build():
     @need_admin
     def manage_meal_plans():
         if request.method == "POST":
-            meal_plan_name = request.form["meal_plan_name"]
+            meal_plan_name = (request.form.get("meal_plan_name") or "").strip()
             image_file = request.files.get("image_file")
 
-            image_filename = None
-            if image_file and image_file.filename:
-                filename = secure_filename(image_file.filename)
-                save_path = os.path.join(app.config["MENU_PLAN_UPLOAD_FOLDER"], filename)
-                image_file.save(save_path)
-                image_filename = filename
+            if not meal_plan_name:
+                flash("Meal plan name is required.", "danger")
+                return redirect(url_for("manage_meal_plans"))
+
+            if not image_file or not image_file.filename:
+                flash("Meal plan image is required.", "danger")
+                return redirect(url_for("manage_meal_plans"))
+
+            image_filename = save_uploaded_file(
+                image_file,
+                app.config["MENU_PLAN_UPLOAD_FOLDER"],
+            )
 
             meal_plan_model.create_meal_plan(meal_plan_name, image_filename)
             flash("Meal plan added!", "success")
@@ -934,6 +947,56 @@ def build():
             facilities=extra_facility_model.list_extra_facilities(),
         )
 
+    @app.post("/admin/room_types/delete/<int:room_type_id>")
+    @need_admin
+    def delete_room_type(room_type_id):
+        room_type = room_model.find_room_type_by_id(room_type_id)
+        if not room_type:
+            flash("Room type not found.", "danger")
+            return redirect(url_for("manage_room_types"))
+
+        rooms_count = room_model.count_rooms_using_type(room_type_id)
+        if rooms_count > 0:
+            flash("Cannot delete this room type because rooms are still assigned to it.", "danger")
+            return redirect(url_for("manage_room_types"))
+
+        try:
+            delete_uploaded_file(app.config["UPLOAD_FOLDER"], room_type["image_path"])
+            room_model.delete_room_type(room_type_id)
+            flash("Room type deleted successfully!", "success")
+        except sqlite3.IntegrityError as e:
+            flash(f"Cannot delete room type: {str(e)}", "danger")
+        except Exception as e:
+            flash(f"Error deleting room type: {str(e)}", "danger")
+
+        return redirect(url_for("manage_room_types"))
+
+    @app.post("/admin/extra_facilities/delete/<int:facility_id>")
+    @need_admin
+    def delete_extra_facility(facility_id):
+        facility = extra_facility_model.find_extra_facility_by_id(facility_id)
+        if not facility:
+            flash("Facility not found.", "danger")
+            return redirect(url_for("manage_extra_facilities"))
+
+        bookings_count = extra_facility_model.count_bookings_using_extra_facility(facility_id)
+        if bookings_count > 0:
+            flash(
+                "Cannot delete this facility because it is used by existing bookings.",
+                "danger",
+            )
+            return redirect(url_for("manage_extra_facilities"))
+
+        try:
+            extra_facility_model.delete_extra_facility(facility_id)
+            flash("Facility deleted successfully!", "success")
+        except sqlite3.IntegrityError as e:
+            flash(f"Cannot delete facility: {str(e)}", "danger")
+        except Exception as e:
+            flash(f"Error deleting facility: {str(e)}", "danger")
+
+        return redirect(url_for("manage_extra_facilities"))
+
     @app.post("/admin/delete_meal_plan/<int:meal_id>")
     @need_admin
     def delete_meal_plan(meal_id):
@@ -948,10 +1011,7 @@ def build():
             return redirect(url_for("manage_meal_plans"))
 
         try:
-            if meal_plan["image_path"]:
-                img_path = os.path.join(app.config["MENU_PLAN_UPLOAD_FOLDER"], meal_plan["image_path"])
-                if os.path.exists(img_path):
-                    os.remove(img_path)
+            delete_uploaded_file(app.config["MENU_PLAN_UPLOAD_FOLDER"], meal_plan["image_path"])
             meal_plan_model.delete_meal_plan(meal_id)
             flash("Meal plan deleted successfully!", "success")
         except sqlite3.IntegrityError as e:
@@ -968,8 +1028,11 @@ def build():
         if room is None:
             flash("Room not found!", "danger")
             return redirect(url_for("manage_rooms"))
-        room_model.delete_room(room_id)
-        flash("Room deleted successfully!", "success")
+        try:
+            room_model.delete_room(room_id)
+            flash("Room deleted successfully!", "success")
+        except sqlite3.IntegrityError:
+            flash("Cannot delete this room because it is used by existing bookings.", "danger")
         return redirect(url_for("manage_rooms"))
 
     @app.get("/admin/bookings/<int:booking_id>/view")
@@ -1007,8 +1070,7 @@ def build():
             return redirect(url_for("admin_view_booking_for_hold", booking_id=booking_id))
 
         booking = booking_model.get_hold_action(booking_id)
-        prob = predict_cancellation(booking) if booking else 0.0
-        is_valid, message, category = can_hold_booking(booking=booking, probability=prob)
+        is_valid, message, category = can_hold_booking(booking=booking)
         if not is_valid:
             flash(message, category)
             return redirect(url_for("admin_view_booking_for_hold", booking_id=booking_id))
@@ -1060,12 +1122,36 @@ def build():
         users = customer_model.list_users_with_booking_stats()
         return render_template("admin_users.html", users=users)
 
+    @app.post("/admin/users/delete/<int:user_id>")
+    @need_admin
+    def delete_user(user_id):
+        user = customer_model.find_by_id(user_id)
+        if not user or int(user["is_admin"] or 0) == 1:
+            flash("User not found.", "danger")
+            return redirect(url_for("admin_view_users"))
+
+        if int(session.get("user_id") or 0) == user_id:
+            flash("You cannot delete your own account while logged in.", "warning")
+            return redirect(url_for("admin_view_users"))
+
+        bookings_count = customer_model.count_bookings_for_user(user_id)
+        if bookings_count > 0:
+            flash("Cannot delete this user because they have booking records.", "danger")
+            return redirect(url_for("admin_view_users"))
+
+        try:
+            customer_model.delete_user(user_id)
+            flash("User deleted successfully!", "success")
+        except sqlite3.IntegrityError as e:
+            flash(f"Cannot delete user: {str(e)}", "danger")
+        except Exception as e:
+            flash(f"Error deleting user: {str(e)}", "danger")
+        return redirect(url_for("admin_view_users"))
+
     return app
 
 
 app = build()
 
-
 if __name__ == "__main__":
-    debug_mode = os.getenv("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes"}
-    app.run(debug=debug_mode)
+    app.run(debug=True)

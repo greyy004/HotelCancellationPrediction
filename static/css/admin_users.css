@@ -125,6 +125,21 @@ tbody td {
     color: #555;
 }
 
+.btn-delete {
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+.btn-delete:hover {
+    background: #b91c1c;
+}
+
 .empty-state {
     text-align: center;
     color: #9ca3af;
